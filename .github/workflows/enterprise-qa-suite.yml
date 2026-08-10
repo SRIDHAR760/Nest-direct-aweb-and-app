@@ -53,12 +53,14 @@ jobs:
         run: |
           mkdir -p selenium/reports
           node -e "
+          process.env.BASE_URL = 'http://localhost:3000';
           const Mocha = require('mocha');
           const mocha = new Mocha({ timeout: 30000 });
           mocha.addFile('selenium/specs/seleniumE2E.spec.js');
           mocha.run(failures => process.exit(failures ? 1 : 0));
           "
         env:
+          BASE_URL: http://localhost:3000
           CI: true
 
       - name: Upload E2E Reports
