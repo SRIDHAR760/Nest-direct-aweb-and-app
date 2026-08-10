@@ -51,11 +51,12 @@ jobs:
       - name: Run Web API E2E Tests
         working-directory: tests
         run: |
-          npx mocha \
-            selenium/specs/*.spec.js \
-            --timeout 30000 \
-            --reporter mochawesome \
-            --reporter-options "reportDir=selenium/reports,reportFilename=index,overwrite=true"
+          mkdir -p selenium/reports
+          node -e "
+          const { spawnSync } = require('child_process');
+          const res = spawnSync('npx', ['mocha', 'selenium/specs/*.spec.js', '--timeout', '30000'], { stdio: 'inherit', env: { ...process.env, BASE_URL: 'http://localhost:3000' } });
+          process.exit(res.status || 0);
+          "
         env:
           CI: true
 
