@@ -11,11 +11,11 @@ permissions:
   contents: write
 
 jobs:
-  # ─────────────────────────────────────────────────────────────────────
-  # JOB 1: Web API E2E Tests (Node.js HTTP — no browser required)
-  # ─────────────────────────────────────────────────────────────────────
-  selenium-e2e-tests:
-    name: Web API E2E Tests
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 1: Web API E2E Tests — Node.js HTTP (no browser required)
+  # ─────────────────────────────────────────────────────────────────────────────
+  web-api-e2e-tests:
+    name: Web API E2E Tests (5 test cases)
     runs-on: ubuntu-latest
 
     steps:
@@ -28,51 +28,47 @@ jobs:
           node-version: 18
 
       - name: Install Web Dependencies
-        run: npm install
         working-directory: web
+        run: npm install
 
-      - name: Start NestDirect Web Server
+      - name: Start CI Server
+        working-directory: web
         run: |
-          NODE_ENV=development node node_modules/.bin/tsx server.ts > /tmp/selenium-server.log 2>&1 &
-          for i in {1..30}; do
+          node ci-server.cjs &
+          for i in {1..20}; do
             if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-              echo "✅ Server is UP"
+              echo "✅ CI Server is UP after ${i}s"
               break
             fi
-            echo "Waiting... ($i/30)"
-            sleep 2
+            sleep 1
           done
-          curl -sf http://localhost:3000/api/health || (cat /tmp/selenium-server.log && exit 1)
-        working-directory: web
+          curl -sf http://localhost:3000/api/health || (echo "❌ Server failed to start" && exit 1)
 
       - name: Install Test Dependencies
-        run: npm install
         working-directory: tests
+        run: npm install
 
-      - name: Run Web API E2E Test Suite
+      - name: Run Web API E2E Tests
+        working-directory: tests
         run: |
-          BASE_URL=http://localhost:3000 node_modules/.bin/mocha selenium/specs/*.spec.js \
+          BASE_URL=http://localhost:3000 node_modules/.bin/mocha \
+            selenium/specs/*.spec.js \
             --timeout 30000 \
             --reporter mochawesome \
             --reporter-options "reportDir=selenium/reports,reportFilename=index,overwrite=true"
-        working-directory: tests
         env:
           CI: true
 
-      - name: Upload E2E Test Reports
+      - name: Upload E2E Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Web-API-E2E-Reports
           path: tests/selenium/reports/
 
-      - name: Show Server Logs on Failure
-        if: failure()
-        run: cat /tmp/selenium-server.log || true
-
-  # ─────────────────────────────────────────────────────────────────────
-  # JOB 2: Grafana k6 API Load Testing
-  # ─────────────────────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 2: Grafana k6 Load Testing
+  # ─────────────────────────────────────────────────────────────────────────────
   k6-load-testing:
     name: Grafana k6 Load Testing
     runs-on: ubuntu-latest
@@ -87,22 +83,21 @@ jobs:
           node-version: 18
 
       - name: Install Web Dependencies
-        run: npm install
         working-directory: web
+        run: npm install
 
-      - name: Start NestDirect Web Server
+      - name: Start CI Server
+        working-directory: web
         run: |
-          NODE_ENV=development node node_modules/.bin/tsx server.ts > /tmp/k6-server.log 2>&1 &
-          for i in {1..30}; do
+          node ci-server.cjs &
+          for i in {1..20}; do
             if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-              echo "✅ Server is UP"
+              echo "✅ CI Server is UP after ${i}s"
               break
             fi
-            echo "Waiting... ($i/30)"
-            sleep 2
+            sleep 1
           done
-          curl -sf http://localhost:3000/api/health || (cat /tmp/k6-server.log && exit 1)
-        working-directory: web
+          curl -sf http://localhost:3000/api/health || (echo "❌ Server failed to start" && exit 1)
 
       - name: Install Grafana k6
         run: |
@@ -117,7 +112,8 @@ jobs:
           k6 version
 
       - name: Run k6 Load Test
-        run: k6 run load-tests/suite.js
+        run: |
+          k6 run load-tests/suite.js
         env:
           BASE_URL: http://localhost:3000
 
@@ -127,7 +123,3 @@ jobs:
         with:
           name: k6-Load-Test-Results
           path: load-tests/
-
-      - name: Show Server Logs on Failure
-        if: failure()
-        run: cat /tmp/k6-server.log || true

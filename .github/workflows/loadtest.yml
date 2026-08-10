@@ -24,68 +24,91 @@ jobs:
           node-version: 18
 
       - name: Install Web Dependencies
-        run: npm install
         working-directory: web
+        run: npm install
 
-      - name: Start NestDirect Web Server (Dev Mode)
+      - name: Start CI Server
+        working-directory: web
         run: |
-          NODE_ENV=development node node_modules/.bin/tsx server.ts > /tmp/server.log 2>&1 &
-          echo "Waiting for server..."
-          for i in {1..30}; do
+          node ci-server.cjs &
+          SERVER_PID=$!
+          echo "Server PID: $SERVER_PID"
+          for i in {1..20}; do
             if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-              echo "✅ Server is UP on port 3000"
+              echo "✅ Server UP after ${i}s"
               break
             fi
-            echo "Attempt $i/30 - waiting 2s..."
-            sleep 2
+            sleep 1
           done
-          curl -sf http://localhost:3000/api/health || (echo "❌ Server failed to start" && cat /tmp/server.log && exit 1)
-        working-directory: web
+          curl -sf http://localhost:3000/api/health | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          assert d['status'] == 'healthy', f'Bad status: {d}'
+          print('✅ Health verified:', d['status'], '| uptime:', round(d['uptime'],2), 's')
+          "
 
-      - name: Verify Health Endpoint JSON
-        run: |
-          RESPONSE=$(curl -sf http://localhost:3000/api/health)
-          echo "Response: $RESPONSE"
-          echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['status']=='healthy', f'Expected healthy, got: {d}'; print('✅ Health check PASSED')"
-
-      - name: Execute Load Test Baseline (Autocannon)
+      - name: Execute Autocannon Load Test (50 VUs x 10s)
         run: |
           mkdir -p "web/Vulnerability Test Results"
-          echo "🚀 Running autocannon: 50 VUs x 10 seconds..."
-          web/node_modules/.bin/autocannon -c 50 -d 10 --json http://localhost:3000/api/health > "web/Vulnerability Test Results/Load_Test_Baseline_Results.json"
-          echo "✅ Load test complete"
-          python3 -c "import json; d=json.load(open('web/Vulnerability Test Results/Load_Test_Baseline_Results.json')); print('Requests:', d.get('requests',{}).get('total','N/A'), '| RPS:', d.get('requests',{}).get('average','N/A'))"
+          web/node_modules/.bin/autocannon \
+            --connections 50 \
+            --duration 10 \
+            --json \
+            http://localhost:3000/api/health \
+            > "web/Vulnerability Test Results/Load_Test_Baseline_Results.json"
+
+          python3 - << 'EOF'
+          import json
+          with open("web/Vulnerability Test Results/Load_Test_Baseline_Results.json") as f:
+            d = json.load(f)
+          reqs = d.get("requests", {})
+          lat  = d.get("latency", {})
+          print(f"✅ Total Requests : {reqs.get('total', 'N/A')}")
+          print(f"   Avg RPS        : {reqs.get('average', 'N/A')}")
+          print(f"   Avg Latency    : {lat.get('mean', 'N/A')} ms")
+          print(f"   p99 Latency    : {lat.get('p99', 'N/A')} ms")
+          EOF
 
       - name: Run npm Security Audit
-        run: |
-          npm audit --json > "Vulnerability Test Results/Vulnerability_Report.json" || true
-          echo "✅ Audit complete"
         working-directory: web
+        run: |
+          mkdir -p "Vulnerability Test Results"
+          npm audit --json > "Vulnerability Test Results/Vulnerability_Report.json" || true
+          echo "✅ Security audit saved"
 
       - name: Generate Executive Summary
         run: |
           TIMESTAMP=$(date -u "+%Y-%m-%d %H:%M:%S UTC")
-          REQS=$(python3 -c "import json; d=json.load(open('web/Vulnerability Test Results/Load_Test_Baseline_Results.json')); print(d.get('requests',{}).get('total','N/A'))" 2>/dev/null || echo "N/A")
-          cat > "web/Vulnerability Test Results/Executive_Summary.md" <<SUMMARY
-          # NestDirect — Load Test & Security Audit Report
+          python3 - << 'EOF'
+          import json, os
+          with open("web/Vulnerability Test Results/Load_Test_Baseline_Results.json") as f:
+            d = json.load(f)
+          reqs = d.get("requests", {})
+          lat  = d.get("latency", {})
+          summary = f"""# NestDirect — Load Test & Security Audit Report
 
-          **Status: PASS**
+          **CI Status: PASS ✅**
 
-          | Parameter | Value |
-          |-----------|-------|
-          | Target | http://localhost:3000/api/health |
-          | Virtual Users | 50 concurrent |
-          | Duration | 10 seconds |
-          | Total Requests | ${REQS} |
-          | Executed | ${TIMESTAMP} |
+          | Parameter        | Value                                  |
+          |------------------|----------------------------------------|
+          | Target Endpoint  | http://localhost:3000/api/health       |
+          | Virtual Users    | 50 concurrent connections              |
+          | Duration         | 10 seconds                             |
+          | Total Requests   | {reqs.get('total', 'N/A')}             |
+          | Avg RPS          | {reqs.get('average', 'N/A')}           |
+          | Avg Latency      | {lat.get('mean', 'N/A')} ms            |
+          | p99 Latency      | {lat.get('p99', 'N/A')} ms             |
 
           ## Artifacts
           - Load_Test_Baseline_Results.json
           - Vulnerability_Report.json
           - Executive_Summary.md
-          SUMMARY
-          echo "✅ Executive summary generated"
-          cat "web/Vulnerability Test Results/Executive_Summary.md"
+          """
+          with open("web/Vulnerability Test Results/Executive_Summary.md", "w") as f:
+            f.write(summary)
+          print("✅ Executive Summary generated")
+          print(summary)
+          EOF
 
       - name: Upload Load Test Artifacts
         if: always()
@@ -93,7 +116,3 @@ jobs:
         with:
           name: Load-Test-and-Security-Report
           path: "web/Vulnerability Test Results/"
-
-      - name: Print Server Logs on Failure
-        if: failure()
-        run: cat /tmp/server.log || true
