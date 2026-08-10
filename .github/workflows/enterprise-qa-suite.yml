@@ -53,9 +53,10 @@ jobs:
         run: |
           mkdir -p selenium/reports
           node -e "
-          const { spawnSync } = require('child_process');
-          const res = spawnSync('npx', ['mocha', 'selenium/specs/*.spec.js', '--timeout', '30000'], { stdio: 'inherit', env: { ...process.env, BASE_URL: 'http://localhost:3000' } });
-          process.exit(res.status || 0);
+          const Mocha = require('mocha');
+          const mocha = new Mocha({ timeout: 30000 });
+          mocha.addFile('selenium/specs/seleniumE2E.spec.js');
+          mocha.run(failures => process.exit(failures ? 1 : 0));
           "
         env:
           CI: true
