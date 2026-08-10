@@ -1,0 +1,70 @@
+{
+  "collections": {
+    "users": {
+      "fields": {
+        "uid": { "type": "string", "description": "The unique user identifier from Firebase Authentication" },
+        "displayName": { "type": "string", "description": "Display name of the authenticated user" },
+        "email": { "type": "string", "description": "Email address of the user" },
+        "photoURL": { "type": "string", "description": "Profile picture URL" },
+        "favorites": { "type": "array", "description": "Array of saved property IDs" },
+        "onboardingCompleted": { "type": "boolean", "description": "Flag indicating if the user has completed onboarding" },
+        "isKycVerified": { "type": "boolean", "description": "Flag indicating if the user has completed identity verification" },
+        "createdAt": { "type": "string", "description": "Timestamp of profile creation" }
+      },
+      "description": "User profiles and saved favorites preferences"
+    },
+    "properties": {
+      "fields": {
+        "id": { "type": "string", "description": "Unique property listing ID" },
+        "title": { "type": "string", "description": "Headline of the rental description" },
+        "description": { "type": "string", "description": "Full details about the property" },
+        "price": { "type": "number", "description": "Monthly rent in INR" },
+        "securityDeposit": { "type": "number", "description": "Refundable security deposit" },
+        "type": { "type": "string", "description": "Enumerated type (apartment, house, studio, room)" },
+        "address": { "type": "string", "description": "Physical address" },
+        "city": { "type": "string", "description": "Locality/Neighborhood in Chennai (e.g., Adyar, Mylapore, OMR)" },
+        "bedrooms": { "type": "number", "description": "Number of bedrooms" },
+        "bathrooms": { "type": "number", "description": "Number of bathrooms" },
+        "areaSqFt": { "type": "number", "description": "Sizable builtup area in sqft" },
+        "amenities": { "type": "array", "description": "List of amenities (e.g., WiFi, AC, Parking, Elevator)" },
+        "photos": { "type": "array", "description": "Image gallery links" },
+        "ownerName": { "type": "string", "description": "Name of the owner" },
+        "ownerPhone": { "type": "string", "description": "Phone number" },
+        "ownerEmail": { "type": "string", "description": "Email address of the owner" },
+        "ownerAvatar": { "type": "string", "description": "Avatar placeholder or image URL" },
+        "ownerVerified": { "type": "boolean", "description": "Flag for validated owner profile" },
+        "brokerSavings": { "type": "number", "description": "Estimated agency broker fees saved by tenants" },
+        "isFeatured": { "type": "boolean", "description": "Whether the listing is featured prominently" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of creation" }
+      },
+      "description": "Rental property listings in Chennai uploaded direct-to-owner"
+    },
+    "inquiries": {
+      "fields": {
+        "id": { "type": "string", "description": "A unique scheduling ID" },
+        "propertyId": { "type": "string", "description": "Target properties foreign key index" },
+        "tenantName": { "type": "string", "description": "Visitor contact name" },
+        "tenantEmail": { "type": "string", "description": "Email address" },
+        "tenantPhone": { "type": "string", "description": "Phone contact number" },
+        "visitDate": { "type": "string", "description": "Requested date for physical property inspection" },
+        "visitTime": { "type": "string", "description": "Desired timeframe slot" },
+        "message": { "type": "string", "description": "Personalized host introductory message" },
+        "status": { "type": "string", "description": "Booking state (pending, accepted, declined)" },
+        "createdAt": { "type": "string", "description": "ISO creation datetime" },
+        "userUid": { "type": "string", "description": "The UID of the tenant who sent the inquiry" }
+      },
+      "description": "Tenant-to-landlord booking requests and visitation scheduling"
+    },
+    "chat_messages": {
+      "fields": {
+        "id": { "type": "string", "description": "Unique chat message sequence key" },
+        "propertyId": { "type": "string", "description": "Relevant property thread association" },
+        "sender": { "type": "string", "description": "Source of message (tenant, owner)" },
+        "text": { "type": "string", "description": "Full chat text" },
+        "timestamp": { "type": "string", "description": "Readable or epoch timeframe sequence marker" },
+        "userUid": { "type": "string", "description": "UID of the user associated with this private dialogue" }
+      },
+      "description": "Direct chat logs and negotiations"
+    }
+  }
+}

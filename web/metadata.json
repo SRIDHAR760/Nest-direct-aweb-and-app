@@ -1,0 +1,6 @@
+{
+  "name": "NestDirect",
+  "description": "Premium Direct-to-Owner Rental Protocol for Chennai. Bypass agency surcharges via an analyzed side-by-side data matrix, real-time commute simulations, and a refined Neo-tech UI for secure rental acquisition.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

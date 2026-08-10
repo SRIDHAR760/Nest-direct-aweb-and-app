@@ -1,0 +1,20 @@
+# Node.js / Vite build artifacts
+web/node_modules/
+web/dist/
+web/.vite/
+web/.env.local
+web/*.log
+
+# Android build artifacts & SDK configs
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/*.iml
+android/app/*.iml
+android/local.properties
+android/.kotlin/
+
+# OS specific files
+.DS_Store
+Thumbs.db
