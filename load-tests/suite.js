@@ -1,31 +1,41 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { config } from './config.js';
+
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 
 export const options = {
   stages: [
-    { duration: '15s', target: 50 },
-    { duration: '30s', target: 100 },
+    { duration: '15s', target: 20 },
+    { duration: '30s', target: 50 },
     { duration: '15s', target: 0 },
   ],
-  thresholds: config.thresholds,
+  thresholds: {
+    http_req_duration: ['p(95)<500', 'avg<300'],
+    http_req_failed: ['rate<0.05'],
+  },
 };
 
 export default function () {
-  // 1. Health Check GET API
-  const healthRes = http.get(`${config.baseUrl}/api/health`);
+  // ── 1. Health Check GET ─────────────────────────────────────────────────────
+  const healthRes = http.get(`${BASE_URL}/api/health`);
   check(healthRes, {
-    'Health status is 200': (r) => r.status === 200,
-    'Server status is healthy': (r) => r.json().status === 'healthy',
+    '✅ Health status 200': (r) => r.status === 200,
+    '✅ Status is healthy': (r) => {
+      try {
+        return r.json('status') === 'healthy';
+      } catch (e) {
+        return false;
+      }
+    },
   });
 
-  sleep(1);
+  sleep(0.5);
 
-  // 2. Active Session Sync GET API
-  const sessionRes = http.get(`${config.baseUrl}/api/sync-session`);
+  // ── 2. Session Sync GET ─────────────────────────────────────────────────────
+  const sessionRes = http.get(`${BASE_URL}/api/sync-session`);
   check(sessionRes, {
-    'Session sync status is 200': (r) => r.status === 200,
+    '✅ Session sync status 200': (r) => r.status === 200,
   });
 
-  sleep(1);
+  sleep(0.5);
 }
