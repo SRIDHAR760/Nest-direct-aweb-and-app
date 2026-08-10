@@ -38,7 +38,7 @@ jobs:
       - name: Start CI Server
         working-directory: web
         run: |
-          node ci-server.cjs &
+          nohup node ci-server.cjs > /tmp/ci-server.log 2>&1 &
           for i in {1..20}; do
             if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
               echo "✅ CI Server is UP after ${i}s"
@@ -46,7 +46,11 @@ jobs:
             fi
             sleep 1
           done
-          curl -sf http://localhost:3000/api/health || (echo "❌ Server failed to start" && exit 1)
+          if ! curl -sf http://localhost:3000/api/health; then
+            echo "❌ Server failed to start. Logs:"
+            cat /tmp/ci-server.log
+            exit 1
+          fi
 
       - name: Run Web API E2E Tests
         working-directory: tests
@@ -62,6 +66,10 @@ jobs:
         env:
           BASE_URL: http://localhost:3000
           CI: true
+
+      - name: Show Server Logs on Failure
+        if: failure()
+        run: cat /tmp/ci-server.log || true
 
       - name: Upload E2E Reports
         if: always()
@@ -93,7 +101,7 @@ jobs:
       - name: Start CI Server
         working-directory: web
         run: |
-          node ci-server.cjs &
+          nohup node ci-server.cjs > /tmp/ci-server-k6.log 2>&1 &
           for i in {1..20}; do
             if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
               echo "✅ CI Server is UP after ${i}s"
@@ -101,7 +109,11 @@ jobs:
             fi
             sleep 1
           done
-          curl -sf http://localhost:3000/api/health || (echo "❌ Server failed to start" && exit 1)
+          if ! curl -sf http://localhost:3000/api/health; then
+            echo "❌ Server failed to start. Logs:"
+            cat /tmp/ci-server-k6.log
+            exit 1
+          fi
 
       - name: Run Grafana k6 Load Test
         uses: grafana/k6-action@v0.4.0
