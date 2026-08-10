@@ -2,7 +2,7 @@ const http = require('http');
 const https = require('https');
 const path = require('path');
 const fs = require('fs');
-const { expect } = require('chai');
+const assert = require('assert');
 const excelReporter = require('../utilities/excelReporter');
 const logger = require('../utilities/logger');
 
@@ -90,9 +90,9 @@ describe('NestDirect Web API — E2E Test Suite', function () {
   it('TC_SEL_001: GET /api/health — should return 200 with healthy status', async function () {
     const { status, body } = await httpGet(`${BASE_URL}/api/health`);
     const json = JSON.parse(body);
-    expect(status).to.equal(200);
-    expect(json).to.have.property('status', 'healthy');
-    expect(json).to.have.property('uptime');
+    assert.strictEqual(status, 200);
+    assert.strictEqual(json.status, 'healthy');
+    assert.ok(json.uptime !== undefined);
     excelReporter.addLog('TC_SEL_001', 'GET /api/health', 'PASS', `Status: ${status}, uptime: ${json.uptime}`);
     logger.info(`TC_SEL_001 PASS — status: ${json.status}, uptime: ${json.uptime}`);
   });
@@ -101,8 +101,8 @@ describe('NestDirect Web API — E2E Test Suite', function () {
   it('TC_SEL_002: GET /api/sync-session — should return 200 with session key', async function () {
     const { status, body } = await httpGet(`${BASE_URL}/api/sync-session`);
     const json = JSON.parse(body);
-    expect(status).to.equal(200);
-    expect(json).to.have.property('session');
+    assert.strictEqual(status, 200);
+    assert.ok(json.hasOwnProperty('session'));
     excelReporter.addLog('TC_SEL_002', 'GET /api/sync-session', 'PASS', `Session key present: ${json.session !== undefined}`);
     logger.info(`TC_SEL_002 PASS — session: ${JSON.stringify(json.session)}`);
   });
@@ -112,10 +112,10 @@ describe('NestDirect Web API — E2E Test Suite', function () {
     const payload = { uid: 'test-user-ci-001', email: 'ci@nestdirect.com', displayName: 'CI Test User' };
     const { status, body } = await httpPost(`${BASE_URL}/api/sync-session`, payload);
     const json = JSON.parse(body);
-    expect(status).to.equal(200);
-    expect(json.status).to.equal('synced');
-    expect(json.session).to.have.property('uid', 'test-user-ci-001');
-    expect(json.session).to.have.property('email', 'ci@nestdirect.com');
+    assert.strictEqual(status, 200);
+    assert.strictEqual(json.status, 'synced');
+    assert.strictEqual(json.session.uid, 'test-user-ci-001');
+    assert.strictEqual(json.session.email, 'ci@nestdirect.com');
     excelReporter.addLog('TC_SEL_003', 'POST /api/sync-session', 'PASS', `Session synced for uid: ${json.session.uid}`);
     logger.info(`TC_SEL_003 PASS — session synced for: ${json.session.displayName}`);
   });
@@ -124,9 +124,9 @@ describe('NestDirect Web API — E2E Test Suite', function () {
   it('TC_SEL_004: POST /api/sync-session with empty body — should clear session', async function () {
     const { status, body } = await httpPost(`${BASE_URL}/api/sync-session`, {});
     const json = JSON.parse(body);
-    expect(status).to.equal(200);
-    expect(json.status).to.equal('cleared');
-    expect(json.session).to.be.null;
+    assert.strictEqual(status, 200);
+    assert.strictEqual(json.status, 'cleared');
+    assert.strictEqual(json.session, null);
     excelReporter.addLog('TC_SEL_004', 'POST /api/sync-session (clear)', 'PASS', 'Session cleared successfully');
     logger.info(`TC_SEL_004 PASS — session cleared`);
   });
@@ -134,7 +134,7 @@ describe('NestDirect Web API — E2E Test Suite', function () {
   // ── TC_SEL_005: Rate Limiting Presence Check ─────────────────────────────
   it('TC_SEL_005: GET /api/health — Rate-limit header should not trigger on normal use', async function () {
     const { status } = await httpGet(`${BASE_URL}/api/health`);
-    expect(status).to.not.equal(429);
+    assert.notStrictEqual(status, 429);
     excelReporter.addLog('TC_SEL_005', 'Rate Limit Baseline Check', 'PASS', `Status was ${status} (not 429)`);
     logger.info(`TC_SEL_005 PASS — rate limit not triggered`);
   });
