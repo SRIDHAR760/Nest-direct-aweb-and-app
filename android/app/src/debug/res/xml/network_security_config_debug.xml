@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NestDirect DEBUG Network Security Configuration
+    ================================================
+    Allows HTTP cleartext ONLY to 127.0.0.1 and localhost.
+    These are the ONLY IPs reachable from ADB reverse tunnelling:
+        adb reverse tcp:3000 tcp:3000
+    This config is NEVER included in production/release APKs.
+-->
+<network-security-config>
+    <!-- Base: HTTPS only (safe default even for debug) -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <!-- Allow user-installed CAs in debug for Charles/mitmproxy testing -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!--
+        127.0.0.1 / localhost: HTTP allowed.
+        This is the ADB reverse tunnel endpoint for the local dev server.
+        Corresponds to: http://localhost:3000 on the PC.
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Production and Firebase domains always HTTPS, even in debug -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">nest-direct-webapp.vercel.app</domain>
+        <domain includeSubdomains="true">firebaseapp.com</domain>
+        <domain includeSubdomains="true">googleapis.com</domain>
+        <domain includeSubdomains="true">firebasestorage.app</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

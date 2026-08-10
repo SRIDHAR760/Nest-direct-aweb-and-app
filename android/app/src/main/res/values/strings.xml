@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">NestDirect</string>
+    <string name="web_app_url">https://nest-direct-webapp.vercel.app/</string>
+</resources>

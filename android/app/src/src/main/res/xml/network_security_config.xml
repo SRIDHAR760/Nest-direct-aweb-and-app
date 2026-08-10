@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NestDirect Network Security Configuration
+    ==========================================
+    Production (release): HTTPS only to nest-direct-webapp.vercel.app
+    Debug:                HTTP allowed ONLY to 127.0.0.1 (ADB reverse tunnel to localhost:3000)
+
+    The debug override is in app/src/debug/AndroidManifest.xml which adds
+    android:networkSecurityConfig="@xml/network_security_config_debug"
+    so this base config is only active for release builds.
+-->
+<network-security-config>
+    <!-- Default: require encrypted connections for all domains -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Production domain: always HTTPS -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">nest-direct-webapp.vercel.app</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Firebase domains: always HTTPS -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">firebaseapp.com</domain>
+        <domain includeSubdomains="true">googleapis.com</domain>
+        <domain includeSubdomains="true">firebase.google.com</domain>
+        <domain includeSubdomains="true">firebasestorage.app</domain>
+        <domain includeSubdomains="true">firestore.googleapis.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>
