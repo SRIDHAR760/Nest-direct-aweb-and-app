@@ -31,6 +31,10 @@ jobs:
         working-directory: web
         run: npm install
 
+      - name: Install Test Dependencies
+        working-directory: tests
+        run: npm install
+
       - name: Start CI Server
         working-directory: web
         run: |
@@ -43,10 +47,6 @@ jobs:
             sleep 1
           done
           curl -sf http://localhost:3000/api/health || (echo "❌ Server failed to start" && exit 1)
-
-      - name: Install Test Dependencies
-        working-directory: tests
-        run: npm install
 
       - name: Run Web API E2E Tests
         working-directory: tests
@@ -103,21 +103,10 @@ jobs:
           done
           curl -sf http://localhost:3000/api/health || (echo "❌ Server failed to start" && exit 1)
 
-      - name: Install Grafana k6
-        run: |
-          sudo gpg --batch --no-default-keyring \
-            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
-            --keyserver hkp://keyserver.ubuntu.com:80 \
-            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69 2>/dev/null || true
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
-            | sudo tee /etc/apt/sources.list.d/k6.list
-          sudo apt-get update -qq
-          sudo apt-get install -y k6
-          k6 version
-
-      - name: Run k6 Load Test
-        run: |
-          k6 run load-tests/suite.js
+      - name: Run Grafana k6 Load Test
+        uses: grafana/k6-action@v0.4.0
+        with:
+          filename: load-tests/suite.js
         env:
           BASE_URL: http://localhost:3000
 
