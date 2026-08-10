@@ -1,5 +1,6 @@
 const ExcelJS = require('exceljs');
 const path = require('path');
+const fs = require('fs');
 const logger = require('./logger');
 
 class SeleniumExcelReporter {
@@ -90,6 +91,8 @@ class SeleniumExcelReporter {
     ];
     this.logs.forEach(l => logSheet.addRow(l));
 
+    const dir = path.dirname(this.filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     await workbook.xlsx.writeFile(this.filePath);
     logger.info(`Selenium Excel Report generated cleanly at: ${this.filePath}`);
   }
