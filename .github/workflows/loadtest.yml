@@ -24,75 +24,76 @@ jobs:
           node-version: 18
 
       - name: Install Web Dependencies
-        run: |
-          cd web
-          npm install
+        run: npm install
+        working-directory: web
 
-      - name: Start NestDirect Server (Dev Mode)
+      - name: Start NestDirect Web Server (Dev Mode)
         run: |
-          cd web
-          NODE_ENV=development nohup npx tsx server.ts > /tmp/server.log 2>&1 &
-          echo "Waiting for server to start..."
-          sleep 8
-          curl --retry 10 --retry-delay 3 --retry-connrefused http://localhost:3000/api/health
+          NODE_ENV=development node node_modules/.bin/tsx server.ts > /tmp/server.log 2>&1 &
+          echo "Waiting for server..."
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "✅ Server is UP on port 3000"
+              break
+            fi
+            echo "Attempt $i/30 - waiting 2s..."
+            sleep 2
+          done
+          curl -sf http://localhost:3000/api/health || (echo "❌ Server failed to start" && cat /tmp/server.log && exit 1)
+        working-directory: web
 
-      - name: Verify Health Endpoint Response
+      - name: Verify Health Endpoint JSON
         run: |
-          RESPONSE=$(curl -s http://localhost:3000/api/health)
-          echo "Health Response: $RESPONSE"
-          echo "$RESPONSE" | grep -q '"status":"healthy"' && echo "✅ Health check PASSED" || echo "⚠️ Health response received"
+          RESPONSE=$(curl -sf http://localhost:3000/api/health)
+          echo "Response: $RESPONSE"
+          echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['status']=='healthy', f'Expected healthy, got: {d}'; print('✅ Health check PASSED')"
 
       - name: Execute Load Test Baseline (Autocannon)
         run: |
           mkdir -p "web/Vulnerability Test Results"
-          echo "🚀 Running load test: 50 concurrent users for 10 seconds..."
-          npx autocannon -c 50 -d 10 --json http://localhost:3000/api/health > "web/Vulnerability Test Results/Load_Test_Baseline_Results.json"
-          echo "✅ Load test complete."
-          cat "web/Vulnerability Test Results/Load_Test_Baseline_Results.json" | head -50
+          echo "🚀 Running autocannon: 50 VUs x 10 seconds..."
+          web/node_modules/.bin/autocannon -c 50 -d 10 --json http://localhost:3000/api/health > "web/Vulnerability Test Results/Load_Test_Baseline_Results.json"
+          echo "✅ Load test complete"
+          python3 -c "import json; d=json.load(open('web/Vulnerability Test Results/Load_Test_Baseline_Results.json')); print('Requests:', d.get('requests',{}).get('total','N/A'), '| RPS:', d.get('requests',{}).get('average','N/A'))"
 
       - name: Run npm Security Audit
         run: |
-          cd web
-          mkdir -p "Vulnerability Test Results"
           npm audit --json > "Vulnerability Test Results/Vulnerability_Report.json" || true
-          echo "✅ Security audit complete."
+          echo "✅ Audit complete"
+        working-directory: web
 
-      - name: Generate Executive Summary Report
+      - name: Generate Executive Summary
         run: |
           TIMESTAMP=$(date -u "+%Y-%m-%d %H:%M:%S UTC")
-          REQS=$(cat "web/Vulnerability Test Results/Load_Test_Baseline_Results.json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('requests',{}).get('total','N/A'))" 2>/dev/null || echo "N/A")
-          cat > "web/Vulnerability Test Results/Executive_Summary.md" << EOF
-          # 📊 NestDirect GitHub Actions — Load Test & Security Audit Report
+          REQS=$(python3 -c "import json; d=json.load(open('web/Vulnerability Test Results/Load_Test_Baseline_Results.json')); print(d.get('requests',{}).get('total','N/A'))" 2>/dev/null || echo "N/A")
+          cat > "web/Vulnerability Test Results/Executive_Summary.md" <<SUMMARY
+          # NestDirect — Load Test & Security Audit Report
 
-          ## ✅ Status: PASS
+          **Status: PASS**
 
-          This load test and security audit ran automatically inside GitHub Actions CI/CD workspace.
-
-          ### 🔬 Test Configuration
           | Parameter | Value |
           |-----------|-------|
-          | Target Endpoint | \`http://localhost:3000/api/health\` |
-          | Concurrent Connections | 50 Virtual Users |
-          | Test Duration | 10 seconds |
-          | Total Requests | $REQS |
-          | Execution Time | $TIMESTAMP |
+          | Target | http://localhost:3000/api/health |
+          | Virtual Users | 50 concurrent |
+          | Duration | 10 seconds |
+          | Total Requests | ${REQS} |
+          | Executed | ${TIMESTAMP} |
 
-          ### 📁 Artifacts Generated
-          - \`Load_Test_Baseline_Results.json\` — Raw k6/autocannon metrics
-          - \`Vulnerability_Report.json\` — npm audit security scan results
-          - \`Executive_Summary.md\` — This summary report
-
-          EOF
-          echo "✅ Executive summary generated."
+          ## Artifacts
+          - Load_Test_Baseline_Results.json
+          - Vulnerability_Report.json
+          - Executive_Summary.md
+          SUMMARY
+          echo "✅ Executive summary generated"
           cat "web/Vulnerability Test Results/Executive_Summary.md"
 
-      - name: Upload Load Test & Audit Artifacts to GitHub Actions
+      - name: Upload Load Test Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Load-Test-and-Security-Report
-          path: web/Vulnerability Test Results/
+          path: "web/Vulnerability Test Results/"
 
-      - name: Show Server Logs on Failure
+      - name: Print Server Logs on Failure
         if: failure()
         run: cat /tmp/server.log || true

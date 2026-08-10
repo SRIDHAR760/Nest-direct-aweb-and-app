@@ -11,11 +11,11 @@ permissions:
   contents: write
 
 jobs:
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 1: Selenium WebDriver Headless E2E Tests
-  # ─────────────────────────────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────────────
+  # JOB 1: Web API E2E Tests (Node.js HTTP — no browser required)
+  # ─────────────────────────────────────────────────────────────────────
   selenium-e2e-tests:
-    name: 🖥️ Selenium WebDriver E2E Tests (Headless Chrome)
+    name: Web API E2E Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -28,50 +28,53 @@ jobs:
           node-version: 18
 
       - name: Install Web Dependencies
-        run: |
-          cd web
-          npm install
+        run: npm install
+        working-directory: web
 
-      - name: Start NestDirect Web Server (Dev Mode)
+      - name: Start NestDirect Web Server
         run: |
-          cd web
-          NODE_ENV=development nohup npx tsx server.ts > /tmp/selenium-server.log 2>&1 &
-          sleep 8
-          curl --retry 10 --retry-delay 3 --retry-connrefused http://localhost:3000/api/health
-          echo "✅ Server is UP on port 3000"
+          NODE_ENV=development node node_modules/.bin/tsx server.ts > /tmp/selenium-server.log 2>&1 &
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "✅ Server is UP"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          curl -sf http://localhost:3000/api/health || (cat /tmp/selenium-server.log && exit 1)
+        working-directory: web
 
       - name: Install Test Dependencies
-        run: |
-          cd tests
-          npm install
+        run: npm install
+        working-directory: tests
 
-      - name: Install ChromeDriver (matching system Chrome)
+      - name: Run Web API E2E Test Suite
         run: |
-          npx -y chromedriver --detect_version
-
-      - name: Run Selenium / API E2E Tests
-        run: |
-          cd tests/selenium
-          BASE_URL=http://localhost:3000 npx mocha specs/*.spec.js --timeout 30000 --reporter mochawesome --reporter-options "reportDir=reports,reportFilename=index" || true
+          BASE_URL=http://localhost:3000 node_modules/.bin/mocha selenium/specs/*.spec.js \
+            --timeout 30000 \
+            --reporter mochawesome \
+            --reporter-options "reportDir=selenium/reports,reportFilename=index,overwrite=true"
+        working-directory: tests
         env:
           CI: true
 
-      - name: Upload Selenium Reports
+      - name: Upload E2E Test Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Selenium-E2E-Reports
+          name: Web-API-E2E-Reports
           path: tests/selenium/reports/
 
       - name: Show Server Logs on Failure
         if: failure()
         run: cat /tmp/selenium-server.log || true
 
-  # ─────────────────────────────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────────────
   # JOB 2: Grafana k6 API Load Testing
-  # ─────────────────────────────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────────────
   k6-load-testing:
-    name: 📊 Grafana k6 API Performance Load Testing
+    name: Grafana k6 Load Testing
     runs-on: ubuntu-latest
 
     steps:
@@ -84,38 +87,41 @@ jobs:
           node-version: 18
 
       - name: Install Web Dependencies
-        run: |
-          cd web
-          npm install
+        run: npm install
+        working-directory: web
 
-      - name: Start NestDirect Web Server (Dev Mode)
+      - name: Start NestDirect Web Server
         run: |
-          cd web
-          NODE_ENV=development nohup npx tsx server.ts > /tmp/k6-server.log 2>&1 &
-          sleep 8
-          curl --retry 10 --retry-delay 3 --retry-connrefused http://localhost:3000/api/health
-          echo "✅ Server is UP on port 3000"
+          NODE_ENV=development node node_modules/.bin/tsx server.ts > /tmp/k6-server.log 2>&1 &
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "✅ Server is UP"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          curl -sf http://localhost:3000/api/health || (cat /tmp/k6-server.log && exit 1)
+        working-directory: web
 
       - name: Install Grafana k6
         run: |
-          sudo gpg -k
-          sudo gpg --no-default-keyring \
+          sudo gpg --batch --no-default-keyring \
             --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
             --keyserver hkp://keyserver.ubuntu.com:80 \
-            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69 2>/dev/null || true
           echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
             | sudo tee /etc/apt/sources.list.d/k6.list
           sudo apt-get update -qq
           sudo apt-get install -y k6
           k6 version
 
-      - name: Execute k6 Load Test Suite
-        run: |
-          k6 run load-tests/suite.js
+      - name: Run k6 Load Test
+        run: k6 run load-tests/suite.js
         env:
           BASE_URL: http://localhost:3000
 
-      - name: Upload k6 Results
+      - name: Upload k6 Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
