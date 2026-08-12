@@ -85,9 +85,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: |
             chmod +x android/gradlew
-            cd android
-            ./gradlew testDebugUnitTest lintDebug assembleDebug --stacktrace
-            cd ..
+            android/gradlew -p android testDebugUnitTest lintDebug assembleDebug --stacktrace
             adb reverse tcp:3000 tcp:3000
             nohup tests/node_modules/.bin/appium --port 4723 > /tmp/appium-server.log 2>&1 &
             for i in {1..30}; do
