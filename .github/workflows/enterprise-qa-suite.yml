@@ -115,10 +115,10 @@ jobs:
             exit 1
           fi
 
-      - name: Run Grafana k6 Load Test
-        uses: grafana/k6-action@v0.4.0
-        with:
-          filename: load-tests/suite.js
+      - name: Download & Run Grafana k6 Load Test
+        run: |
+          curl -sL https://github.com/grafana/k6/releases/download/v0.49.0/k6-v0.49.0-linux-amd64.tar.gz | tar -xz -C /tmp
+          /tmp/k6-v0.49.0-linux-amd64/k6 run load-tests/suite.js
         env:
           BASE_URL: http://localhost:3000
 
