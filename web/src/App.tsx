@@ -172,6 +172,7 @@ export default function App() {
   // --- View Control States ---
   // For Web Layout view selection: 'browse' | 'docs' | 'owner' | 'chats'
   const [webActiveSection, setWebActiveSection] = useState<'browse' | 'docs' | 'owner' | 'chats'>('browse');
+  const [ownerPortalViewMode, setOwnerPortalViewMode] = useState<'dashboard' | 'add'>('dashboard');
 
   // --- Active elements state ---
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
@@ -1165,7 +1166,10 @@ export default function App() {
               ].map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => setWebActiveSection(item.id as any)}
+                  onClick={() => {
+                    if (item.id === 'owner') setOwnerPortalViewMode('dashboard');
+                    setWebActiveSection(item.id as any);
+                  }}
                   className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider transition-all font-sans relative py-1.5 ${
                     webActiveSection === item.id ? 'text-terracotta' : 'text-stone-500 hover:text-ink'
                   }`}
@@ -1180,6 +1184,17 @@ export default function App() {
                   )}
                 </button>
               ))}
+
+              <button
+                onClick={() => {
+                  setOwnerPortalViewMode('add');
+                  setWebActiveSection('owner');
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#12141C] hover:bg-terracotta text-white rounded-md font-bold text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
+              >
+                <Plus className="w-4 h-4 text-brass" strokeWidth={2} />
+                Add Unit
+              </button>
             </nav>
           </div>
 
@@ -1736,6 +1751,7 @@ export default function App() {
               onUpdateInquiryStatus={handleUpdateInquiryStatus}
               onTogglePropertyStatus={handleTogglePropertyStatus}
               currentUser={currentUser}
+              initialViewMode={ownerPortalViewMode}
             />
           </motion.div>
         )}

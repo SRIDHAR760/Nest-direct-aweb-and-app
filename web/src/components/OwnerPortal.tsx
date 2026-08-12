@@ -41,6 +41,7 @@ interface OwnerPortalProps {
   onUpdateInquiryStatus: (id: string, status: 'accepted' | 'declined') => void;
   onTogglePropertyStatus?: (id: string) => void;
   currentUser?: any;
+  initialViewMode?: 'dashboard' | 'add';
 }
 
 export default function OwnerPortal({ 
@@ -49,9 +50,16 @@ export default function OwnerPortal({
   onAddProperty, 
   onUpdateInquiryStatus, 
   onTogglePropertyStatus,
-  currentUser 
+  currentUser,
+  initialViewMode = 'dashboard'
 }: OwnerPortalProps) {
-  const [viewMode, setViewMode] = useState<'dashboard' | 'add'>('dashboard');
+  const [viewMode, setViewMode] = useState<'dashboard' | 'add'>(initialViewMode);
+
+  useEffect(() => {
+    if (initialViewMode) {
+      setViewMode(initialViewMode);
+    }
+  }, [initialViewMode]);
 
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('25000');
@@ -815,9 +823,10 @@ export default function OwnerPortal({
 
                   <button
                     type="submit"
-                    className="w-full bg-terracotta hover:bg-terracotta/95 text-white font-bold py-4 px-4 rounded-sm text-xs uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer"
+                    className="w-full bg-terracotta hover:bg-terracotta/95 text-white font-bold py-4 px-4 rounded-sm text-xs uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                   >
-                    Deploy Direct Listing Agent
+                    <PlusCircle className="w-4 h-4" />
+                    Save Unit & Publish to Cloud
                   </button>
                 </div>
               </form>
