@@ -47,19 +47,19 @@ function httpPost(url, payload) {
   });
 }
 
-describe('NestDirect Web API — E2E Test Suite', function () {
+describe('NestDirect Web API & Selenium E2E Automation Suite', function () {
   this.timeout(30000);
 
   before(function () {
     const dir = path.join(__dirname, '../reports/failures');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    logger.info(`Starting NestDirect Web API E2E Suite against: ${BASE_URL}`);
+    logger.info(`Starting NestDirect Web E2E Suite against: ${BASE_URL}`);
     excelReporter.addLog('Suite Setup', 'HTTP client initialized', 'PASS', `Target: ${BASE_URL}`);
   });
 
   after(async function () {
     await excelReporter.generateReport();
-    logger.info('NestDirect E2E Suite complete. Excel report generated.');
+    logger.info('NestDirect Web E2E Suite complete. Excel report generated.');
   });
 
   afterEach(function () {
@@ -137,5 +137,36 @@ describe('NestDirect Web API — E2E Test Suite', function () {
     assert.notStrictEqual(status, 429);
     excelReporter.addLog('TC_SEL_005', 'Rate Limit Baseline Check', 'PASS', `Status was ${status} (not 429)`);
     logger.info(`TC_SEL_005 PASS — rate limit not triggered`);
+  });
+
+  // ── TC_SEL_006: Agreement Generator — Missing Required Fields (400 Bad Request) ──
+  it('TC_SEL_006: POST /api/generate-agreement — should return 400 when missing required parameters', async function () {
+    const { status, body } = await httpPost(`${BASE_URL}/api/generate-agreement`, { rent: 25000 });
+    const json = JSON.parse(body);
+    assert.strictEqual(status, 400);
+    assert.ok(json.error !== undefined);
+    excelReporter.addLog('TC_SEL_006', 'POST /api/generate-agreement (validation)', 'PASS', 'Correctly rejected missing fields');
+    logger.info(`TC_SEL_006 PASS — validation rejected missing fields`);
+  });
+
+  // ── TC_SEL_007: Agreement Generator — Valid Agreement Generation ────────
+  it('TC_SEL_007: POST /api/generate-agreement — should generate agreement draft with required fields', async function () {
+    const payload = { propertyTitle: 'Adyar Luxury 2BHK', rent: 30000, tenantName: 'CI Tester' };
+    const { status, body } = await httpPost(`${BASE_URL}/api/generate-agreement`, payload);
+    const json = JSON.parse(body);
+    assert.strictEqual(status, 200);
+    assert.ok(json.agreement !== undefined);
+    excelReporter.addLog('TC_SEL_007', 'POST /api/generate-agreement (success)', 'PASS', 'Agreement generated cleanly');
+    logger.info(`TC_SEL_007 PASS — agreement text returned`);
+  });
+
+  // ── TC_SEL_008: Load Test Engine API Endpoint ────────────────────────────
+  it('TC_SEL_008: POST /api/run-load-test — should calculate load metrics simulation', async function () {
+    const { status, body } = await httpPost(`${BASE_URL}/api/run-load-test`, { vus: 50, durationSec: 10 });
+    const json = JSON.parse(body);
+    assert.strictEqual(status, 200);
+    assert.ok(json.summary !== undefined);
+    excelReporter.addLog('TC_SEL_008', 'POST /api/run-load-test', 'PASS', 'Load metrics calculated');
+    logger.info(`TC_SEL_008 PASS — total requests: ${json.summary.totalRequests}`);
   });
 });
