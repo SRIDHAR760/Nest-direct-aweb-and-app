@@ -170,8 +170,8 @@ export default function App() {
   const [hoveredWorkplace, setHoveredWorkplace] = useState<string | null>(null);
 
   // --- View Control States ---
-  // For Web Layout view selection: 'browse' | 'docs' | 'owner' | 'chats' | 'guru'
-  const [webActiveSection, setWebActiveSection] = useState<'browse' | 'docs' | 'owner' | 'chats' | 'guru'>('browse');
+  // For Web Layout view selection: 'browse' | 'docs' | 'owner' | 'chats'
+  const [webActiveSection, setWebActiveSection] = useState<'browse' | 'docs' | 'owner' | 'chats'>('browse');
 
   // --- Active elements state ---
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
@@ -1161,7 +1161,6 @@ export default function App() {
                 { id: 'browse', label: 'Discover', icon: Compass },
                 { id: 'chats', label: 'Messages', icon: MessageSquare },
                 { id: 'owner', label: 'Owner Hub', icon: User },
-                { id: 'guru', label: 'AI Guru', icon: Sparkles },
                 { id: 'docs', label: 'Guidelines', icon: BookOpen },
               ].map((item) => (
                 <button
@@ -1726,11 +1725,7 @@ export default function App() {
           </motion.div>
         )}
 
-        {webActiveSection === 'guru' && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="h-[750px] bg-[#1A1D1F] rounded-[3rem] shadow-premium overflow-hidden">
-            <GuruChatBot properties={properties} />
-          </motion.div>
-        )}
+
 
         {webActiveSection === 'owner' && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-h-[700px] bg-white rounded-[3rem] shadow-premium border border-slate-100 overflow-hidden p-8">
