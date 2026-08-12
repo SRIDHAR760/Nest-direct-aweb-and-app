@@ -88,13 +88,7 @@ jobs:
             android/gradlew -p android testDebugUnitTest lintDebug assembleDebug --stacktrace
             adb reverse tcp:3000 tcp:3000
             nohup tests/node_modules/.bin/appium --port 4723 > /tmp/appium-server.log 2>&1 &
-            for i in {1..30}; do
-              if curl -sf http://127.0.0.1:4723/status > /dev/null 2>&1; then
-                echo "Appium server is ready"
-                break
-              fi
-              sleep 1
-            done
+            for i in $(seq 1 30); do if curl -sf http://127.0.0.1:4723/status > /dev/null 2>&1; then echo "Appium server is ready"; break; fi; sleep 1; done
             curl -sf http://127.0.0.1:4723/status
             npm --prefix tests run test:appium
 
