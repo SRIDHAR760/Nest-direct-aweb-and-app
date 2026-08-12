@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   load-test-and-audit:
@@ -16,31 +16,35 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Setup Node.js 18
-        uses: actions/setup-node@v4
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v7
         with:
-          node-version: 18
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
 
       - name: Install Web Dependencies
         working-directory: web
-        run: npm install
+        run: npm ci
 
       - name: Start CI Server
         working-directory: web
+        env:
+          RATE_LIMIT_MAX: 1000000
         run: |
           node ci-server.cjs &
           SERVER_PID=$!
           echo "Server PID: $SERVER_PID"
           for i in {1..20}; do
-            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+            if curl -sf http://127.0.0.1:3000/api/health > /dev/null 2>&1; then
               echo "✅ Server UP after ${i}s"
               break
             fi
             sleep 1
           done
-          curl -sf http://localhost:3000/api/health | python3 -c "
+          curl -sf http://127.0.0.1:3000/api/health | python3 -c "
           import sys, json
           d = json.load(sys.stdin)
           assert d['status'] == 'healthy', f'Bad status: {d}'
@@ -54,7 +58,7 @@ jobs:
             --connections 50 \
             --duration 10 \
             --json \
-            http://localhost:3000/api/health \
+            http://127.0.0.1:3000/api/health \
             > "web/Vulnerability Test Results/Load_Test_Baseline_Results.json"
 
           python3 - << 'EOF'
@@ -91,7 +95,7 @@ jobs:
 
           | Parameter        | Value                                  |
           |------------------|----------------------------------------|
-          | Target Endpoint  | http://localhost:3000/api/health       |
+          | Target Endpoint  | http://127.0.0.1:3000/api/health       |
           | Virtual Users    | 50 concurrent connections              |
           | Duration         | 10 seconds                             |
           | Total Requests   | {reqs.get('total', 'N/A')}             |
@@ -112,7 +116,7 @@ jobs:
 
       - name: Upload Load Test Artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Load-Test-and-Security-Report
           path: "web/Vulnerability Test Results/"
