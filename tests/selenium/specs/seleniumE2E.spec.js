@@ -6,7 +6,10 @@ const assert = require('assert');
 const excelReporter = require('../utilities/excelReporter');
 const logger = require('../utilities/logger');
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+// Use an explicit IPv4 loopback address. On Ubuntu runners `localhost` may
+// resolve to ::1 while the CI server is listening on IPv4, causing false
+// ECONNREFUSED failures even though the health probe succeeds.
+const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:3000';
 
 /**
  * Helper: simple HTTP GET returning { status, body }
@@ -14,11 +17,13 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 function httpGet(url) {
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https') ? https : http;
-    client.get(url, (res) => {
+    const req = client.get(url, (res) => {
       let data = '';
       res.on('data', chunk => { data += chunk; });
       res.on('end', () => resolve({ status: res.statusCode, body: data }));
-    }).on('error', reject);
+    });
+    req.setTimeout(10000, () => req.destroy(new Error(`GET ${url} timed out`)));
+    req.on('error', reject);
   });
 }
 
@@ -29,18 +34,21 @@ function httpPost(url, payload) {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify(payload);
     const parsedUrl = new URL(url);
+    const client = parsedUrl.protocol === 'https:' ? https : http;
     const options = {
+      protocol: parsedUrl.protocol,
       hostname: parsedUrl.hostname,
-      port: parsedUrl.port || 3000,
-      path: parsedUrl.pathname,
+      port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+      path: `${parsedUrl.pathname}${parsedUrl.search}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
     };
-    const req = http.request(options, (res) => {
+    const req = client.request(options, (res) => {
       let body = '';
       res.on('data', chunk => { body += chunk; });
       res.on('end', () => resolve({ status: res.statusCode, body }));
     });
+    req.setTimeout(10000, () => req.destroy(new Error(`POST ${url} timed out`)));
     req.on('error', reject);
     req.write(data);
     req.end();

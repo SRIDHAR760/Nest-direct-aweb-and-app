@@ -1,9 +1,14 @@
 const { remote } = require('webdriverio');
 const path = require('path');
+const fs = require('fs');
+const assert = require('assert');
 const logger = require('../utilities/logger');
 const excelReporter = require('../utilities/excelReporter');
-const BasePage = require('../pages/basePage');
-const AiTestingEngine = require('../utilities/aiTestingEngine');
+
+const APK_PATH = process.env.APK_PATH || path.resolve(
+  __dirname,
+  '../../../android/app/build/outputs/apk/debug/app-debug.apk'
+);
 
 const opts = {
   path: '/',
@@ -12,29 +17,33 @@ const opts = {
     platformName: 'Android',
     'appium:automationName': 'UiAutomator2',
     'appium:deviceName': process.env.DEVICE_NAME || 'Android Emulator',
-    'appium:app': process.env.APK_PATH || path.resolve(__dirname, '../../android/app/build/outputs/apk/release/app-release.apk'),
+    'appium:app': APK_PATH,
     'appium:appPackage': process.env.APP_PACKAGE || 'com.nestdirect.app',
     'appium:appActivity': process.env.APP_ACTIVITY || 'com.nestdirect.app.MainActivity',
     'appium:autoGrantPermissions': true,
-    'appium:newCommandTimeout': 120
+    'appium:newCommandTimeout': 120,
+    'appium:uiautomator2ServerInstallTimeout': 120000,
+    'appium:adbExecTimeout': 120000
   }
 };
 
-describe('Appium 2.x Enterprise E2E Test Suite for NestDirect', function () {
+describe('Appium 3.x Android E2E Test Suite for NestDirect', function () {
   this.timeout(180000);
   let driver;
-  let basePage;
 
   before(async function () {
-    logger.info('Initializing Appium 2.x Driver Session...');
+    assert.ok(fs.existsSync(APK_PATH), `APK does not exist: ${APK_PATH}`);
+    fs.mkdirSync(path.join(__dirname, '../reports/failures'), { recursive: true });
+    logger.info('Initializing Appium 3.x Driver Session...');
     driver = await remote(opts);
-    basePage = new BasePage(driver);
     excelReporter.addLog('Suite Setup', 'Driver Initialization', 'PASS', 'Appium session established');
   });
 
   after(async function () {
-    if (driver) {
+    try {
       await excelReporter.generateReport();
+    } finally {
+      if (!driver) return;
       logger.info('Closing Appium Driver Session...');
       await driver.deleteSession();
     }
@@ -52,20 +61,26 @@ describe('Appium 2.x Enterprise E2E Test Suite for NestDirect', function () {
   });
 
   it('TC_APP_001: Should launch NestDirect application automatically', async function () {
-    excelReporter.addLog('TC_APP_001', 'App Launch Verification', 'PASS', 'Package com.nestdirect.app launched');
     const isAppInstalled = await driver.isAppInstalled(opts.capabilities['appium:appPackage']);
-    if (!isAppInstalled) {
-      await driver.installApp(opts.capabilities['appium:app']);
-    }
+    assert.strictEqual(isAppInstalled, true, 'NestDirect APK was not installed');
+    excelReporter.addLog('TC_APP_001', 'App Launch Verification', 'PASS', 'Package com.nestdirect.app installed');
   });
 
-  it('TC_APP_002: AI-Assisted Screen Discovery and Widget Validation', async function () {
-    excelReporter.addLog('TC_APP_002', 'AI Widget Discovery', 'PASS', 'Scanning React Native widget tree');
-    const discoveredWidgets = await AiTestingEngine.analyzeScreenAndDiscoverWidgets(driver);
-    await AiTestingEngine.generateAndExecuteDynamicTests(driver, discoveredWidgets);
+  it('TC_APP_002: Should keep the NestDirect package and MainActivity in foreground', async function () {
+    const currentPackage = await driver.getCurrentPackage();
+    const currentActivity = await driver.getCurrentActivity();
+    assert.strictEqual(currentPackage, 'com.nestdirect.app');
+    assert.ok(currentActivity.endsWith('.MainActivity'), `Unexpected activity: ${currentActivity}`);
+    excelReporter.addLog('TC_APP_002', 'Foreground App Verification', 'PASS', `${currentPackage}/${currentActivity}`);
   });
 
-  it('TC_APP_003: E2E Business Flow - Explore Navigation & Form Input Rules', async function () {
-    excelReporter.addLog('TC_APP_003', 'Form Validation & Input Check', 'PASS', 'Form fields validated');
+  it('TC_APP_003: Should display the WebView without the connection-error screen', async function () {
+    const webView = await driver.$('android=new UiSelector().className("android.webkit.WebView")');
+    await webView.waitForDisplayed({ timeout: 30000 });
+
+    const offlineMessage = await driver.$('android=new UiSelector().textContains("NestDirect connection error")');
+    const offlineVisible = await offlineMessage.isExisting() && await offlineMessage.isDisplayed();
+    assert.strictEqual(offlineVisible, false, 'Android wrapper displayed its connection-error screen');
+    excelReporter.addLog('TC_APP_003', 'WebView Connectivity', 'PASS', 'WebView visible and offline message hidden');
   });
 });

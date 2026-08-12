@@ -4,8 +4,11 @@
  * Exposes all API endpoints that tests and load tests target.
  */
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
+const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX) || 120;
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '100kb' }));
@@ -23,7 +26,7 @@ app.use('/api/', (req, res, next) => {
     rateLimitMap.set(ip, { count: 1, resetTime: now + 60000 });
     return next();
   }
-  if (client.count >= 120) {
+  if (client.count >= RATE_LIMIT_MAX) {
     return res.status(429).json({ error: 'Rate limit exceeded.' });
   }
   client.count++;
@@ -78,7 +81,20 @@ app.post('/api/generate-agreement', (req, res) => {
   res.json({ agreement: `CI Stub Agreement for ${propertyTitle} — Tenant: ${tenantName} — Rent: ${rent}` });
 });
 
+// Serve the compiled web application for Android WebView smoke tests. API-only
+// workflows do not need a build, so keep the fallback optional.
+const distDir = path.join(__dirname, 'dist');
+const indexFile = path.join(distDir, 'index.html');
+if (fs.existsSync(indexFile)) {
+  app.use(express.static(distDir));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) return next();
+    return res.sendFile(indexFile);
+  });
+}
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[CI Server] NestDirect API server running on http://0.0.0.0:${PORT}`);
+  console.log(`[CI Server] Rate limit: ${RATE_LIMIT_MAX} requests/minute per client`);
   console.log(`[CI Server] Endpoints: /api/health, /api/sync-session, /api/run-load-test`);
 });

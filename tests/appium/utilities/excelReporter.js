@@ -1,5 +1,6 @@
 const ExcelJS = require('exceljs');
 const path = require('path');
+const fs = require('fs');
 const logger = require('./logger');
 
 class ExcelReporter {
@@ -90,6 +91,7 @@ class ExcelReporter {
     ];
     this.logs.forEach(l => logSheet.addRow(l));
 
+    fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
     await workbook.xlsx.writeFile(this.filePath);
     logger.info(`Appium Excel Report generated cleanly at: ${this.filePath}`);
   }

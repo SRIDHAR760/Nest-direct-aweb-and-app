@@ -11,6 +11,7 @@ import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
@@ -32,6 +33,7 @@ import android.widget.FrameLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class MainActivity : Activity() {
@@ -171,6 +173,7 @@ class MainActivity : Activity() {
                 }
             }
 
+            @RequiresApi(Build.VERSION_CODES.O_MR1)
             override fun onSafeBrowsingHit(
                 view: WebView,
                 request: WebResourceRequest,

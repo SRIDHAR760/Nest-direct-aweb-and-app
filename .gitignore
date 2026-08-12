@@ -5,6 +5,11 @@ web/.vite/
 web/.env.local
 web/*.log
 
+# Test dependencies and generated reports
+tests/node_modules/
+tests/selenium/reports/
+tests/appium/reports/
+
 # Android build artifacts & SDK configs
 android/.gradle/
 android/build/

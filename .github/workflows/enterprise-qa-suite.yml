@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
@@ -20,33 +20,37 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Setup Node.js 18
-        uses: actions/setup-node@v4
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v7
         with:
-          node-version: 18
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            tests/package-lock.json
 
       - name: Install Web Dependencies
         working-directory: web
-        run: npm install
+        run: npm ci
 
       - name: Install Test Dependencies
         working-directory: tests
-        run: npm install
+        run: npm ci
 
       - name: Start CI Server
         working-directory: web
         run: |
           nohup node ci-server.cjs > /tmp/ci-server.log 2>&1 &
           for i in {1..20}; do
-            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+            if curl -sf http://127.0.0.1:3000/api/health > /dev/null 2>&1; then
               echo "✅ CI Server is UP after ${i}s"
               break
             fi
             sleep 1
           done
-          if ! curl -sf http://localhost:3000/api/health; then
+          if ! curl -sf http://127.0.0.1:3000/api/health; then
             echo "❌ Server failed to start. Logs:"
             cat /tmp/ci-server.log
             exit 1
@@ -57,14 +61,14 @@ jobs:
         run: |
           mkdir -p selenium/reports
           node -e "
-          process.env.BASE_URL = 'http://localhost:3000';
+          process.env.BASE_URL = 'http://127.0.0.1:3000';
           const Mocha = require('mocha');
           const mocha = new Mocha({ timeout: 30000 });
           mocha.addFile('selenium/specs/seleniumE2E.spec.js');
           mocha.run(failures => process.exit(failures ? 1 : 0));
           "
         env:
-          BASE_URL: http://localhost:3000
+          BASE_URL: http://127.0.0.1:3000
           CI: true
 
       - name: Show Server Logs on Failure
@@ -73,7 +77,7 @@ jobs:
 
       - name: Upload E2E Reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Web-API-E2E-Reports
           path: tests/selenium/reports/
@@ -87,29 +91,33 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Setup Node.js 18
-        uses: actions/setup-node@v4
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v7
         with:
-          node-version: 18
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
 
       - name: Install Web Dependencies
         working-directory: web
-        run: npm install
+        run: npm ci
 
       - name: Start CI Server
         working-directory: web
+        env:
+          RATE_LIMIT_MAX: 1000000
         run: |
           nohup node ci-server.cjs > /tmp/ci-server-k6.log 2>&1 &
           for i in {1..20}; do
-            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+            if curl -sf http://127.0.0.1:3000/api/health > /dev/null 2>&1; then
               echo "✅ CI Server is UP after ${i}s"
               break
             fi
             sleep 1
           done
-          if ! curl -sf http://localhost:3000/api/health; then
+          if ! curl -sf http://127.0.0.1:3000/api/health; then
             echo "❌ Server failed to start. Logs:"
             cat /tmp/ci-server-k6.log
             exit 1
@@ -117,14 +125,14 @@ jobs:
 
       - name: Download & Run Grafana k6 Load Test
         run: |
-          curl -sL https://github.com/grafana/k6/releases/download/v0.49.0/k6-v0.49.0-linux-amd64.tar.gz | tar -xz -C /tmp
+          curl -sL https://github.com/grafana/k6/releases/download/v0.49.0/k6-v0.49.0-linux-amd64.tar.gz | tar --no-same-owner -xz -C /tmp
           /tmp/k6-v0.49.0-linux-amd64/k6 run load-tests/suite.js
         env:
-          BASE_URL: http://localhost:3000
+          BASE_URL: http://127.0.0.1:3000
 
       - name: Upload k6 Artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: k6-Load-Test-Results
           path: load-tests/
