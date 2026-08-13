@@ -87,7 +87,7 @@ export const workplacesData: Workplace[] = [
   }
 ];
 
-export const neighborhoodCenters: Record<string, { x: number; y: number }> = {
+const neighborhoodCenters: Record<string, { x: number; y: number }> = {
   'Adyar': { x: 53, y: 56 },
   'OMR': { x: 123, y: 36 },
   'Mylapore': { x: 36, y: 126 },
