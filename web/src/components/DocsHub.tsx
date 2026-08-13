@@ -136,6 +136,53 @@ export default function DocsHub({ properties, isKycVerified, onVerifyKyc, onSeed
     document.body.removeChild(element);
   };
 
+  const printAgreementAsPdf = () => {
+    if (!draftedAgreement) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>NestDirect Legal Agreement - ${tenantName}</title>
+          <style>
+            body { font-family: 'Georgia', 'Times New Roman', serif; padding: 40px; color: #1a1a1a; line-height: 1.8; max-width: 800px; margin: 0 auto; }
+            h1 { text-align: center; text-transform: uppercase; font-size: 20px; letter-spacing: 2px; margin-bottom: 25px; border-bottom: 2px solid #111; padding-bottom: 12px; }
+            .content { white-space: pre-wrap; font-size: 13px; text-align: justify; }
+            .badge { display: inline-block; padding: 4px 12px; background: #f3f4f6; border: 1px solid #d1d5db; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 20px; }
+            .signatures { margin-top: 60px; display: flex; justify-content: space-between; border-top: 1px dashed #bbb; padding-top: 40px; page-break-inside: avoid; }
+            .sig-box { width: 45%; text-align: center; border: 1px solid #e5e7eb; padding: 20px; border-radius: 8px; background: #fafafa; }
+            @media print { body { padding: 0; } .no-print { display: none; } }
+          </style>
+        </head>
+        <body>
+          <div style="text-align: center;">
+            <div class="badge">Official Peer-to-Peer Lease Document • Zero Brokerage Surcharge</div>
+          </div>
+          <h1>Residential Rental Agreement</h1>
+          <div class="content">${draftedAgreement}</div>
+          <div class="signatures">
+            <div class="sig-box">
+              <p style="margin:0; font-size:11px; text-transform:uppercase; font-weight:bold; letter-spacing:1px; color:#666;">LESSOR / LANDLORD</p>
+              <div style="height: 50px;"></div>
+              <p style="margin:0; font-weight:bold; font-size:13px;">${ownerName || "Direct Owner"}</p>
+            </div>
+            <div class="sig-box">
+              <p style="margin:0; font-size:11px; text-transform:uppercase; font-weight:bold; letter-spacing:1px; color:#666;">LESSEE / TENANT</p>
+              <div style="height: 50px;"></div>
+              <p style="margin:0; font-weight:bold; font-size:13px;">${tenantName}</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 400);
+  };
+
   const simulateUpload = () => {
     setIsUploading(true);
     setTimeout(() => {
@@ -649,10 +696,17 @@ export default function DocsHub({ properties, isKycVerified, onVerifyKyc, onSeed
                     </button>
                     <button
                       onClick={downloadAgreement}
-                      className="px-4 py-2.5 bg-terracotta hover:bg-terracotta/90 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2.5 bg-[#12141C] hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
                     >
-                      <Download className="w-3.5 h-3.5 text-parchment" />
-                      Download (.txt)
+                      <Download className="w-3.5 h-3.5 text-brass" />
+                      Txt File
+                    </button>
+                    <button
+                      onClick={printAgreementAsPdf}
+                      className="px-5 py-2.5 bg-terracotta hover:bg-terracotta/90 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm transition-all shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-white" />
+                      Print / Save PDF
                     </button>
                     <button
                       onClick={() => {
