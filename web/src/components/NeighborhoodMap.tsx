@@ -130,7 +130,6 @@ const realChennaiProperties: MapProperty[] = [
     emoji: '🌿',
     safetyScore: 93
   },
-  // NEW NEARBY HOUSES & LOCATIONS
   {
     id: 'prop-7',
     title: 'Velachery Tech Residency 🏢',
@@ -240,7 +239,7 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
     document.body.appendChild(script);
   }, []);
 
-  // Event delegate for 100% reliable marker pill button clicks
+  // Event handler for 100% reliable marker button clicks
   const handleMarkerClick = (prop: MapProperty) => {
     setSelectedProp(prop);
     onZoneSelect(prop.city);
@@ -250,7 +249,7 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
     }
   };
 
-  // Initialize & update Leaflet Real-time Map
+  // Single unified map instance creation & resize management
   useEffect(() => {
     if (!isLeafletLoaded || !mapContainerRef.current || !(window as any).L) return;
     const L = (window as any).L;
@@ -270,7 +269,7 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
       streetTile.addTo(map);
       mapInstanceRef.current = map;
 
-      // Add Custom Green House Markers with explicit data-prop-id
+      // Add Custom Green House Markers
       realChennaiProperties.forEach(prop => {
         const customIcon = L.divIcon({
           className: 'custom-leaflet-marker-wrapper',
@@ -311,13 +310,24 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
         }
       };
       container.addEventListener('click', listener);
-
-    } else {
-      setTimeout(() => {
-        mapInstanceRef.current.invalidateSize();
-      }, 200);
     }
-  }, [isLeafletLoaded, isFullScreen]);
+  }, [isLeafletLoaded]);
+
+  // Clean resize & invalidateSize when full-screen is toggled (Zero Gray Box Glitch!)
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    
+    // Invalidate map size cleanly after CSS transition
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+      if (selectedProp) {
+        map.panTo([selectedProp.lat, selectedProp.lng]);
+      }
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [isFullScreen]);
 
   // Update Tile Style Layer dynamically
   useEffect(() => {
@@ -362,16 +372,22 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
   }, [selectedZone, highlightedPropertyId]);
 
   return (
-    <div className="w-full h-full min-h-[550px] flex flex-col text-left relative overflow-hidden bg-slate-900 rounded-[2.5rem]" id="realtime-leaflet-map-wrapper">
-      
-      {/* 🧭 Top Floating Quick Search & Filter Header */}
-      <div className="p-3 bg-slate-900/95 backdrop-blur-md text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 z-20">
+    <div 
+      className={`transition-all duration-300 ease-out bg-slate-900 overflow-hidden ${
+        isFullScreen 
+          ? 'fixed inset-0 z-50 p-4 sm:p-6 flex flex-col backdrop-blur-2xl bg-slate-950/95' 
+          : 'relative w-full h-full min-h-[550px] flex flex-col text-left rounded-[2.5rem]'
+      }`} 
+      id="realtime-leaflet-map-wrapper"
+    >
+      {/* 🧭 Top Floating Navigation Bar */}
+      <div className="p-3.5 bg-slate-900/95 backdrop-blur-md text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 z-20 shrink-0 rounded-t-[2rem]">
         <div className="flex items-center gap-3 flex-1 min-w-[200px]">
-          <div className="w-8 h-8 rounded-lg bg-[#84cc16] flex items-center justify-center text-slate-950 font-black shadow-md shrink-0">
-            <Navigation className="w-4 h-4 transform -rotate-45" />
+          <div className="w-9 h-9 rounded-xl bg-[#84cc16] flex items-center justify-center text-slate-950 font-black shadow-md shrink-0">
+            <Navigation className="w-4.5 h-4.5 transform -rotate-45" />
           </div>
           <div className="relative flex-1 max-w-xs">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
             <input
               type="text"
               placeholder="Search Dream, Smart, Beach, Villa..."
@@ -385,49 +401,59 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
                   setSelectedProp(matched);
                 }
               }}
-              className="w-full bg-slate-800 text-white placeholder:text-slate-400 text-xs font-bold pl-8 pr-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:border-[#84cc16]"
+              className="w-full bg-slate-800 text-white placeholder:text-slate-400 text-xs font-bold pl-8 pr-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:border-[#84cc16]"
             />
           </div>
         </div>
 
-        {/* Real-Time Layer Switcher */}
-        <div className="flex items-center gap-1.5">
+        {/* Real-Time Layer Switcher & Fullscreen Button */}
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setMapStyle('streets')}
-            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-              mapStyle === 'streets' ? 'bg-[#84cc16] text-slate-950 shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white'
+            className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+              mapStyle === 'streets' ? 'bg-[#84cc16] text-slate-950 shadow-md font-black' : 'bg-slate-800 text-slate-400 hover:text-white'
             }`}
           >
             Street Map
           </button>
           <button
             onClick={() => setMapStyle('satellite')}
-            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-              mapStyle === 'satellite' ? 'bg-[#3b82f6] text-white shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white'
+            className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+              mapStyle === 'satellite' ? 'bg-[#3b82f6] text-white shadow-md font-black' : 'bg-slate-800 text-slate-400 hover:text-white'
             }`}
           >
             Satellite
           </button>
           <button
             onClick={() => setIsFullScreen(!isFullScreen)}
-            className="w-8 h-8 bg-slate-800 hover:bg-[#84cc16] text-white hover:text-slate-950 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+            className="px-4 py-2 bg-[#84cc16] hover:bg-[#65a30d] text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
             title={isFullScreen ? "Exit Fullscreen" : "Fullscreen Map"}
           >
-            {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isFullScreen ? (
+              <>
+                <Minimize2 className="w-4 h-4" />
+                Exit Fullscreen
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-4 h-4" />
+                Fullscreen Map
+              </>
+            )}
           </button>
         </div>
       </div>
 
-      {/* 🏡 Quick Marker Selector Chips */}
-      <div className="px-4 py-2 bg-slate-950/80 border-b border-slate-800 flex items-center gap-2 overflow-x-auto scrollbar-none z-20">
-        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest shrink-0">Click Button:</span>
+      {/* 🏡 Quick Marker Selector Chips Bar (Interactive Buttons) */}
+      <div className="px-4 py-2.5 bg-slate-950/90 border-b border-slate-800 flex items-center gap-2 overflow-x-auto scrollbar-none z-20 shrink-0">
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0 mr-1">Click Button:</span>
         {realChennaiProperties.map((prop) => (
           <button
             key={`chip-${prop.id}`}
             onClick={() => handleMarkerClick(prop)}
-            className={`px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition-all border cursor-pointer flex items-center gap-1 shrink-0 ${
+            className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all border cursor-pointer flex items-center gap-1.5 shrink-0 ${
               selectedProp?.id === prop.id 
-                ? 'bg-[#84cc16] text-slate-950 border-[#84cc16] font-black shadow-md scale-105' 
+                ? 'bg-[#84cc16] text-slate-950 border-[#84cc16] font-black shadow-lg scale-105' 
                 : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-500 hover:text-white'
             }`}
           >
@@ -437,9 +463,9 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
         ))}
       </div>
 
-      {/* 🗺️ REAL-TIME LEAFLET MAP CANVAS */}
-      <div className="flex-1 w-full h-full min-h-[500px] relative z-10">
-        <div ref={mapContainerRef} className="w-full h-full min-h-[500px]" />
+      {/* 🗺️ SINGLE UNIFIED LEAFLET MAP DOM CANVAS (Zero Glitch!) */}
+      <div className="flex-1 w-full h-full min-h-[450px] relative z-10 overflow-hidden">
+        <div ref={mapContainerRef} className="w-full h-full min-h-[450px]" />
       </div>
 
       {/* 🏡 Bottom Property Details Card Overlay */}
@@ -486,41 +512,6 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
           </motion.div>
         </div>
       )}
-
-      {/* 🚀 FULL-SCREEN MODAL */}
-      <AnimatePresence>
-        {isFullScreen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl p-4 sm:p-8 flex flex-col"
-          >
-            <div className="bg-slate-900 px-6 py-4 rounded-t-3xl border-b border-slate-800 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#84cc16] flex items-center justify-center text-slate-950 font-black shadow-md">
-                  <Navigation className="w-5 h-5 transform -rotate-45" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-white uppercase tracking-wide">Real-Time OpenStreetMap Engine</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Chennai Live Satellite & Street Navigation</p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setIsFullScreen(false)}
-                className="w-10 h-10 bg-slate-800 hover:bg-red-500 text-white rounded-2xl flex items-center justify-center transition-all border border-slate-700 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 bg-slate-900 rounded-b-3xl overflow-hidden relative border border-slate-800">
-              <div ref={mapContainerRef} className="w-full h-full min-h-[600px]" />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
