@@ -4,7 +4,7 @@ import {
   MapPin, Compass, Navigation, Maximize2, Minimize2, X, 
   Search, Home, Sparkles, Building, Car, Bus, Bike, 
   Layers, Plus, Minus, Target, Star, Utensils, GraduationCap, 
-  ShieldCheck, Eye, Zap, Flame, Route, Sliders, CheckCircle
+  ShieldCheck, Eye, Zap, Flame, Route, Sliders, CheckCircle, ExternalLink
 } from 'lucide-react';
 
 interface NeighborhoodProps {
@@ -14,6 +14,7 @@ interface NeighborhoodProps {
   transitMode: 'auto' | 'metro' | 'bike';
   selectedWorkplace?: string;
   onPropertySelect?: (id: string) => void;
+  highlightedPropertyId?: string | null;
 }
 
 interface MapProperty {
@@ -45,7 +46,7 @@ const mapProperties: MapProperty[] = [
     rating: 4.9,
     bedrooms: 2,
     area: 950,
-    x: 80, 
+    x: 85, 
     y: 75, 
     emoji: '😊',
     safetyScore: 96
@@ -135,14 +136,14 @@ const mapProperties: MapProperty[] = [
 const pois = [
   { id: 'dominos', label: "Domino's Pizza", type: 'food', x: 45, y: 40 },
   { id: 'school', label: 'Journalism & Mass Comm', type: 'edu', x: 165, y: 35 },
-  { id: 'park', label: 'Greene St Park & Fountain', type: 'park', x: 245, y: 80 },
+  { id: 'park', label: 'Greene St Park', type: 'park', x: 245, y: 80 },
   { id: 'science', label: 'Physical Science Center', type: 'edu', x: 85, y: 220 },
 ];
 
 const workplaces = [
   { id: 'iitm', name: 'IIT Madras Park', city: 'Adyar', x: 180, y: 185, time: '8 mins' },
-  { id: 'tidel', name: 'TIDEL Park IT Expressway', city: 'OMR', x: 145, y: 260, time: '12 mins' },
-  { id: 'spencer', name: 'Spencer Plaza Commercial', city: 'Nungambakkam', x: 65, y: 55, time: '6 mins' },
+  { id: 'tidel', name: 'TIDEL Park IT Highway', city: 'OMR', x: 145, y: 260, time: '12 mins' },
+  { id: 'spencer', name: 'Spencer Plaza', city: 'Nungambakkam', x: 65, y: 55, time: '6 mins' },
 ];
 
 const NeighborhoodMap: React.FC<NeighborhoodProps> = ({ 
@@ -151,7 +152,8 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
   neighborhoodData, 
   transitMode,
   selectedWorkplace = 'iitm',
-  onPropertySelect
+  onPropertySelect,
+  highlightedPropertyId
 }) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [hoveredProp, setHoveredProp] = useState<MapProperty | null>(null);
@@ -160,6 +162,7 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
   const [zoomLevel, setZoomLevel] = useState<number>(1.0);
   const [is3DTilt, setIs3DTilt] = useState(false);
   const [heatmapMode, setHeatmapMode] = useState<'none' | 'price' | 'safety'>('none');
+  const [mapStyle, setMapStyle] = useState<'streets' | 'satellite'>('streets');
   const [searchQuery, setSearchQuery] = useState('');
 
   const currentZone = neighborhoodData[selectedZone] || neighborhoodData['Adyar'];
@@ -172,222 +175,253 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
     );
   }, [searchQuery]);
 
+  const activePropTarget = useMemo(() => {
+    if (highlightedPropertyId) {
+      const match = mapProperties.find(p => p.id === highlightedPropertyId);
+      if (match) return match;
+    }
+    return selectedProp || mapProperties[0];
+  }, [highlightedPropertyId, selectedProp]);
+
   // Robust SVG route curve path calculation
   const routeCurvePath = useMemo(() => {
-    const targetX = selectedProp?.x ?? 180;
-    const targetY = selectedProp?.y ?? 185;
+    const targetX = activePropTarget?.x ?? 180;
+    const targetY = activePropTarget?.y ?? 185;
     const startX = activeWorkplace?.x ?? 180;
     const startY = activeWorkplace?.y ?? 185;
     const cpX = (startX + targetX) / 2 - (startY - targetY) * 0.25;
     const cpY = (startY + targetY) / 2 + (startX - targetX) * 0.25;
     return `M ${startX},${startY} Q ${cpX},${cpY} ${targetX},${targetY}`;
-  }, [selectedProp, activeWorkplace]);
+  }, [activePropTarget, activeWorkplace]);
 
   const renderMapCanvas = (full: boolean = false) => (
-    <div className="relative w-full h-full bg-[#E5E3DF] overflow-hidden select-none">
+    <div className="relative w-full h-full min-h-[500px] md:min-h-[650px] bg-[#E5E3DF] overflow-hidden select-none flex flex-col">
       
-      {/* 🧭 Google Maps Top Floating Search Bar */}
-      <div className="absolute top-3 left-3 right-16 sm:right-auto z-20 flex items-center gap-2 pointer-events-auto">
-        <div className="relative flex-1 sm:w-72 bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-slate-200 p-2 flex items-center gap-2">
-          <Search className="w-4 h-4 text-slate-400 shrink-0 ml-2" />
-          <input
-            type="text"
-            placeholder="Search street, ward, BHK..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full text-xs font-bold text-slate-900 bg-transparent placeholder:text-slate-400 focus:outline-none"
-          />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="p-1 hover:bg-slate-100 rounded-full text-slate-400 cursor-pointer">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+      {/* 🧭 Google Maps Header Toolbar Controls */}
+      <div className="p-3 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 z-20">
+        <div className="flex items-center gap-3 flex-1 min-w-[200px]">
+          <div className="w-8 h-8 rounded-lg bg-[#84cc16] flex items-center justify-center text-slate-950 font-black shadow-md shrink-0">
+            <Navigation className="w-4 h-4 transform -rotate-45" />
+          </div>
+          <div className="relative flex-1 max-w-xs">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search ward or street..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-800 text-white placeholder:text-slate-400 text-xs font-bold pl-8 pr-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:border-[#84cc16]"
+            />
+          </div>
+        </div>
+
+        {/* Map Type Mode Controls */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setMapStyle('streets')}
+            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+              mapStyle === 'streets' ? 'bg-[#84cc16] text-slate-950 shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white'
+            }`}
+          >
+            Map
+          </button>
+          <button
+            onClick={() => setMapStyle('satellite')}
+            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+              mapStyle === 'satellite' ? 'bg-[#3b82f6] text-white shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white'
+            }`}
+          >
+            Satellite
+          </button>
         </div>
       </div>
 
-      {/* 🗺️ Main Map SVG Canvas */}
-      <div 
-        className="w-full h-full origin-center transition-transform duration-500 ease-out"
-        style={{
-          transform: is3DTilt ? 'rotateX(25deg) rotateZ(-4deg) scale(1.1)' : 'none'
-        }}
-      >
-        <svg 
-          viewBox="0 0 300 300" 
-          className="w-full h-full"
-          style={{ transform: `scale(${zoomLevel})`, transition: 'transform 0.2s ease-out' }}
+      {/* 🗺️ Main Map SVG Canvas (Fills entire container) */}
+      <div className="flex-1 w-full h-full relative overflow-hidden">
+        <div 
+          className="w-full h-full origin-center transition-transform duration-500 ease-out"
+          style={{
+            transform: is3DTilt ? 'rotateX(25deg) rotateZ(-4deg) scale(1.1)' : 'none'
+          }}
         >
-          <defs>
-            {/* GIS Grid Pattern */}
-            <pattern id="cleanGrid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <rect width="40" height="40" fill="#f8fafc" />
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e2e8f0" strokeWidth="1" />
-            </pattern>
+          <svg 
+            viewBox="0 0 300 300" 
+            preserveAspectRatio="xMidYMid slice"
+            className="w-full h-full"
+            style={{ transform: `scale(${zoomLevel})`, transition: 'transform 0.2s ease-out' }}
+          >
+            <defs>
+              {/* GIS Grid Pattern */}
+              <pattern id="cleanGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <rect width="40" height="40" fill={mapStyle === 'satellite' ? '#0f172a' : '#f8fafc'} />
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke={mapStyle === 'satellite' ? '#1e293b' : '#e2e8f0'} strokeWidth="1" />
+              </pattern>
 
-            {/* Building Footprints Pattern */}
-            <pattern id="cleanBldg" width="20" height="20" patternUnits="userSpaceOnUse">
-              <rect x="2" y="2" width="7" height="7" fill="#e2e8f0" rx="1" />
-              <rect x="11" y="2" width="7" height="7" fill="#cbd5e1" rx="1" />
-              <rect x="2" y="11" width="16" height="7" fill="#f1f5f9" rx="1" />
-            </pattern>
+              {/* Building Footprints Pattern */}
+              <pattern id="cleanBldg" width="20" height="20" patternUnits="userSpaceOnUse">
+                <rect x="2" y="2" width="7" height="7" fill="#e2e8f0" rx="1" />
+                <rect x="11" y="2" width="7" height="7" fill="#cbd5e1" rx="1" />
+                <rect x="2" y="11" width="16" height="7" fill="#f1f5f9" rx="1" />
+              </pattern>
 
-            {/* Glow Drop Shadow */}
-            <filter id="cleanShadow" x="-30%" y="-30%" width="160%" height="160%">
-              <feDropShadow dx="0" dy="3" stdDeviation="2.5" floodColor="#000000" floodOpacity="0.22" />
-            </filter>
+              {/* Glow Drop Shadow */}
+              <filter id="cleanShadow" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="3" stdDeviation="2.5" floodColor="#000000" floodOpacity="0.25" />
+              </filter>
 
-            {/* Heatmap Gradients */}
-            <radialGradient id="heatPriceGrad" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
-            </radialGradient>
-            <radialGradient id="heatSafetyGrad" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.05" />
-            </radialGradient>
-          </defs>
+              {/* Heatmap Gradients */}
+              <radialGradient id="heatPriceGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.5" />
+                <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
+              </radialGradient>
+              <radialGradient id="heatSafetyGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#22c55e" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.05" />
+              </radialGradient>
+            </defs>
 
-          {/* 1. Base GIS Grid */}
-          <rect width="300" height="300" fill="url(#cleanGrid)" />
-          <rect width="300" height="300" fill="url(#cleanBldg)" opacity="0.3" />
+            {/* 1. Base GIS Grid */}
+            <rect width="300" height="300" fill="url(#cleanGrid)" />
+            <rect width="300" height="300" fill="url(#cleanBldg)" opacity="0.3" />
 
-          {/* 2. Heatmap Overlay */}
-          {heatmapMode === 'price' && (
-            <circle cx="195" cy="175" r="90" fill="url(#heatPriceGrad)" className="pointer-events-none transition-all" />
-          )}
-          {heatmapMode === 'safety' && (
-            <circle cx="195" cy="175" r="110" fill="url(#heatSafetyGrad)" className="pointer-events-none transition-all" />
-          )}
+            {/* 2. Heatmap Overlay */}
+            {heatmapMode === 'price' && (
+              <circle cx="195" cy="175" r="90" fill="url(#heatPriceGrad)" className="pointer-events-none transition-all" />
+            )}
+            {heatmapMode === 'safety' && (
+              <circle cx="195" cy="175" r="110" fill="url(#heatSafetyGrad)" className="pointer-events-none transition-all" />
+            )}
 
-          {/* 3. Ocean / Bay of Bengal */}
-          <path d="M 235,0 C 255,60 230,120 255,200 C 245,250 252,300 252,300 L 300,300 L 300,0 Z" fill="#93c5fd" />
-          <text x="272" y="80" className="font-sans text-[6.5px] fill-[#1e40af] font-black uppercase tracking-widest pointer-events-none" transform="rotate(90 272 80)">
-            Bay of Bengal
-          </text>
+            {/* 3. Ocean / Bay of Bengal */}
+            <path d="M 235,0 C 255,60 230,120 255,200 C 245,250 252,300 252,300 L 300,300 L 300,0 Z" fill={mapStyle === 'satellite' ? '#1e3a8a' : '#93c5fd'} />
+            <text x="272" y="80" className="font-sans text-[6.5px] fill-[#1e40af] font-black uppercase tracking-widest pointer-events-none" transform="rotate(90 272 80)">
+              Bay of Bengal
+            </text>
 
-          {/* 4. Major Road Networks with Labels */}
-          {/* Greene Street */}
-          <path d="M 0,110 L 300,50" fill="none" stroke="#22c55e" strokeWidth="6" opacity="0.85" />
-          <path d="M 0,110 L 300,50" fill="none" stroke="#ffffff" strokeWidth="3.5" />
-          <text x="140" y="72" className="font-sans text-[4.5px] fill-slate-800 font-extrabold pointer-events-none" transform="rotate(-11 140 72)">Greene St</text>
+            {/* 4. Major Road Networks with Labels */}
+            {/* Greene Street */}
+            <path d="M 0,110 L 300,50" fill="none" stroke="#22c55e" strokeWidth="6" opacity="0.85" />
+            <path d="M 0,110 L 300,50" fill="none" stroke="#ffffff" strokeWidth="3.5" />
+            <text x="140" y="72" className="font-sans text-[4.5px] fill-slate-800 font-extrabold pointer-events-none" transform="rotate(-11 140 72)">Greene St</text>
 
-          {/* Main Street */}
-          <path d="M 60,0 L 20,300" fill="none" stroke="#64748b" strokeWidth="6" />
-          <path d="M 60,0 L 20,300" fill="none" stroke="#ffffff" strokeWidth="4" />
-          <text x="45" y="120" className="font-sans text-[4.5px] fill-slate-700 font-bold pointer-events-none" transform="rotate(82 45 120)">Main St</text>
+            {/* Main Street */}
+            <path d="M 60,0 L 20,300" fill="none" stroke="#64748b" strokeWidth="6" />
+            <path d="M 60,0 L 20,300" fill="none" stroke="#ffffff" strokeWidth="4" />
+            <text x="45" y="120" className="font-sans text-[4.5px] fill-slate-700 font-bold pointer-events-none" transform="rotate(82 45 120)">Main St</text>
 
-          {/* OMR IT Highway */}
-          <path d="M 120,195 Q 165,230 195,235 T 145,295" fill="none" stroke="#eab308" strokeWidth="6" />
-          <path d="M 120,195 Q 165,230 195,235 T 145,295" fill="none" stroke="#ffffff" strokeWidth="4" />
+            {/* OMR IT Highway */}
+            <path d="M 120,195 Q 165,230 195,235 T 145,295" fill="none" stroke="#eab308" strokeWidth="6" />
+            <path d="M 120,195 Q 165,230 195,235 T 145,295" fill="none" stroke="#ffffff" strokeWidth="4" />
 
-          {/* 5. Live Dynamic Route Path */}
-          <g className="pointer-events-none">
-            <path 
-              d={routeCurvePath} 
-              fill="none" 
-              stroke="#3b82f6" 
-              strokeWidth="5" 
-              strokeLinecap="round"
-              opacity="0.85"
-              filter="url(#cleanShadow)"
-            />
-            <path 
-              d={routeCurvePath} 
-              fill="none" 
-              stroke="#ffffff" 
-              strokeWidth="2" 
-              strokeDasharray="4 6"
-              className="animate-route-dash"
-            />
+            {/* 5. Live Dynamic Route Path */}
+            <g className="pointer-events-none">
+              <path 
+                d={routeCurvePath} 
+                fill="none" 
+                stroke="#3b82f6" 
+                strokeWidth="5" 
+                strokeLinecap="round"
+                opacity="0.85"
+                filter="url(#cleanShadow)"
+              />
+              <path 
+                d={routeCurvePath} 
+                fill="none" 
+                stroke="#ffffff" 
+                strokeWidth="2" 
+                strokeDasharray="4 6"
+                className="animate-route-dash"
+              />
 
-            {/* Commute Time Badge */}
-            <g transform={`translate(${(activeWorkplace.x + (selectedProp?.x || 180)) / 2}, ${(activeWorkplace.y + (selectedProp?.y || 185)) / 2})`}>
-              <rect x="-30" y="-10" width="60" height="20" rx="10" fill="#0f172a" filter="url(#cleanShadow)" stroke="#3b82f6" strokeWidth="1" />
-              <text x="0" y="3" textAnchor="middle" fill="#ffffff" className="font-sans text-[7px] font-black uppercase tracking-wider">
-                ⚡ {activeWorkplace.time}
-              </text>
+              {/* Commute Time Badge */}
+              <g transform={`translate(${(activeWorkplace.x + (activePropTarget?.x || 180)) / 2}, ${(activeWorkplace.y + (activePropTarget?.y || 185)) / 2})`}>
+                <rect x="-30" y="-10" width="60" height="20" rx="10" fill="#0f172a" filter="url(#cleanShadow)" stroke="#3b82f6" strokeWidth="1" />
+                <text x="0" y="3" textAnchor="middle" fill="#ffffff" className="font-sans text-[7px] font-black uppercase tracking-wider">
+                  ⚡ {activeWorkplace.time}
+                </text>
+              </g>
             </g>
-          </g>
 
-          {/* 6. Workplace Nodes */}
-          {workplaces.map((w) => {
-            const isActive = activeWorkplace.id === w.id;
-            return (
-              <g 
-                key={`wp-${w.id}`}
-                className="cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveWorkplace(w);
-                }}
-              >
-                <circle cx={w.x} cy={w.y} r={isActive ? 9 : 6} fill="#0f172a" stroke="#ffffff" strokeWidth="1.5" filter="url(#cleanShadow)" />
-                <circle cx={w.x} cy={w.y} r="3.5" fill="#eab308" />
-              </g>
-            );
-          })}
-
-          {/* 7. Green House Pins with Custom Emoji Titles matching Screenshot */}
-          {filteredProperties.map((prop) => {
-            const isSelected = selectedProp?.id === prop.id || hoveredProp?.id === prop.id;
-
-            return (
-              <g 
-                key={prop.id}
-                className="cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedProp(prop);
-                  onZoneSelect(prop.city);
-                  if (onPropertySelect) onPropertySelect(prop.id);
-                }}
-                onMouseEnter={() => setHoveredProp(prop)}
-                onMouseLeave={() => setHoveredProp(null)}
-              >
-                {/* Pulsing Target Ring */}
-                {isSelected && (
-                  <circle cx={prop.x} cy={prop.y} r="18" fill="#84cc16" fillOpacity="0.3" className="animate-ping" />
-                )}
-
-                {/* Green Pin Shape */}
-                <g transform={`translate(${prop.x}, ${prop.y})`} filter="url(#cleanShadow)">
-                  <path 
-                    d="M 0,0 C -8,-10 -12,-16 0,-24 C 12,-16 8,-10 0,0 Z" 
-                    fill={isSelected ? '#65a30d' : '#84cc16'} 
-                    stroke="#ffffff" 
-                    strokeWidth="1.5" 
-                  />
-                  <circle cx="0" cy="-14" r="6.5" fill="#ffffff" />
-                  <path d="M -3.5,-14 L 0,-17.5 L 3.5,-14 L 3.5,-10.5 L -3.5,-10.5 Z" fill="#ef4444" />
-                  <rect x="-1" y="-13" width="2.5" height="2.5" fill="#3b82f6" />
+            {/* 6. Workplace Nodes */}
+            {workplaces.map((w) => {
+              const isActive = activeWorkplace.id === w.id;
+              return (
+                <g 
+                  key={`wp-${w.id}`}
+                  className="cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveWorkplace(w);
+                  }}
+                >
+                  <circle cx={w.x} cy={w.y} r={isActive ? 9 : 6} fill="#0f172a" stroke="#ffffff" strokeWidth="1.5" filter="url(#cleanShadow)" />
+                  <circle cx={w.x} cy={w.y} r="3.5" fill="#eab308" />
                 </g>
+              );
+            })}
 
-                {/* Green Pill Badge ("Dream Penthouse 😊") */}
-                <g transform={`translate(${prop.x}, ${prop.y + 13})`} filter="url(#cleanShadow)">
-                  <rect 
-                    x="-40" 
-                    y="-9" 
-                    width="80" 
-                    height="18" 
-                    rx="9" 
-                    fill={isSelected ? '#84cc16' : '#a3e635'} 
-                    stroke="#ffffff" 
-                    strokeWidth="1.5" 
-                  />
-                  <text 
-                    x="0" 
-                    y="3" 
-                    textAnchor="middle" 
-                    fill="#1a2e05" 
-                    className="font-sans text-[6px] font-black tracking-tight select-none"
-                  >
-                    {prop.title}
-                  </text>
+            {/* 7. Green House Pins with Custom Emoji Titles matching Screenshot */}
+            {filteredProperties.map((prop) => {
+              const isSelected = activePropTarget?.id === prop.id || hoveredProp?.id === prop.id;
+
+              return (
+                <g 
+                  key={prop.id}
+                  className="cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedProp(prop);
+                    onZoneSelect(prop.city);
+                    if (onPropertySelect) onPropertySelect(prop.id);
+                  }}
+                  onMouseEnter={() => setHoveredProp(prop)}
+                  onMouseLeave={() => setHoveredProp(null)}
+                >
+                  {/* Pulsing Target Ring */}
+                  {isSelected && (
+                    <circle cx={prop.x} cy={prop.y} r="18" fill="#84cc16" fillOpacity="0.35" className="animate-ping" />
+                  )}
+
+                  {/* Green Pin Shape */}
+                  <g transform={`translate(${prop.x}, ${prop.y})`} filter="url(#cleanShadow)">
+                    <path 
+                      d="M 0,0 C -8,-10 -12,-16 0,-24 C 12,-16 8,-10 0,0 Z" 
+                      fill={isSelected ? '#65a30d' : '#84cc16'} 
+                      stroke="#ffffff" 
+                      strokeWidth="1.5" 
+                    />
+                    <circle cx="0" cy="-14" r="6.5" fill="#ffffff" />
+                    <path d="M -3.5,-14 L 0,-17.5 L 3.5,-14 L 3.5,-10.5 L -3.5,-10.5 Z" fill="#ef4444" />
+                    <rect x="-1" y="-13" width="2.5" height="2.5" fill="#3b82f6" />
+                  </g>
+
+                  {/* Price Tag Pill Badge */}
+                  <g transform={`translate(${prop.x}, ${prop.y + 13})`} filter="url(#cleanShadow)">
+                    <rect 
+                      x="-42" 
+                      y="-9" 
+                      width="84" 
+                      height="18" 
+                      rx="9" 
+                      fill={isSelected ? '#84cc16' : '#a3e635'} 
+                      stroke="#ffffff" 
+                      strokeWidth="1.5" 
+                    />
+                    <text 
+                      x="0" 
+                      y="3" 
+                      textAnchor="middle" 
+                      fill="#1a2e05" 
+                      className="font-sans text-[6px] font-black tracking-tight select-none"
+                    >
+                      {prop.title} • ₹{(prop.price/1000).toFixed(0)}k
+                    </text>
+                  </g>
                 </g>
-              </g>
-            );
-          })}
-        </svg>
+              );
+            })}
+          </svg>
+        </div>
       </div>
 
       {/* Hardware-accelerated CSS Route Animation */}
@@ -402,7 +436,7 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
       `}</style>
 
       {/* 🎛️ Map Controls Bar (Top & Right) */}
-      <div className="absolute top-3 right-3 flex flex-col gap-2 z-20 pointer-events-auto">
+      <div className="absolute top-16 right-3 flex flex-col gap-2 z-20 pointer-events-auto">
         <button 
           onClick={(e) => { e.stopPropagation(); setIs3DTilt(!is3DTilt); }}
           className={`w-9 h-9 rounded-xl shadow-lg flex items-center justify-center border font-black text-xs transition-all cursor-pointer ${
@@ -448,8 +482,8 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
         </button>
       </div>
 
-      {/* 🏡 High-Resolution Property Card (Bottom Overlay) */}
-      {selectedProp && (
+      {/* 🏡 High-Resolution Property Preview Card (Bottom) */}
+      {activePropTarget && (
         <div className="absolute inset-x-3 bottom-3 z-20 pointer-events-auto">
           <motion.div 
             initial={{ opacity: 0, y: 15 }}
@@ -457,21 +491,21 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
             className="bg-slate-900/95 backdrop-blur-md p-4 rounded-3xl border border-slate-800 shadow-2xl text-left flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
           >
             <div className="flex items-center gap-4">
-              <img src={selectedProp.image} alt="" className="w-16 h-16 rounded-2xl object-cover border border-white/10 shrink-0 shadow-md" />
+              <img src={activePropTarget.image} alt="" className="w-16 h-16 rounded-2xl object-cover border border-white/10 shrink-0 shadow-md" />
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 bg-[#84cc16] text-slate-950 font-black rounded-md text-[9px] uppercase tracking-wider">
-                    {selectedProp.title}
+                    {activePropTarget.title}
                   </span>
                   <span className="text-[10px] text-amber-400 font-extrabold flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-amber-400" /> {selectedProp.rating}
+                    <Star className="w-3 h-3 fill-amber-400" /> {activePropTarget.rating}
                   </span>
                 </div>
                 <h4 className="text-sm font-black text-white truncate">
-                  ₹{selectedProp.price.toLocaleString()}/mo • {selectedProp.bedrooms} BHK ({selectedProp.area} sqft)
+                  ₹{activePropTarget.price.toLocaleString()}/mo • {activePropTarget.bedrooms} BHK ({activePropTarget.area} sqft)
                 </h4>
                 <p className="text-[10px] text-slate-400 font-medium truncate flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-[#84cc16]" /> Safety Score: {selectedProp.safetyScore}/100 • Direct Owner
+                  <ShieldCheck className="w-3 h-3 text-[#84cc16]" /> Safety Score: {activePropTarget.safetyScore}/100 • Direct Owner
                 </p>
               </div>
             </div>
@@ -480,8 +514,8 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onZoneSelect(selectedProp.city);
-                  if (onPropertySelect) onPropertySelect(selectedProp.id);
+                  onZoneSelect(activePropTarget.city);
+                  if (onPropertySelect) onPropertySelect(activePropTarget.id);
                   if (full) setIsFullScreen(false);
                 }}
                 className="flex-1 sm:flex-none px-5 py-3 bg-[#84cc16] hover:bg-[#65a30d] text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
@@ -497,29 +531,27 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
   );
 
   return (
-    <div className="space-y-4 text-left" id="advanced-google-map-root">
+    <div className="w-full h-full min-h-[550px] flex flex-col text-left" id="professional-google-map-root">
       {/* Header Bar */}
-      <div className="flex items-center justify-between">
+      <div className="p-4 bg-white border-b border-slate-200 flex items-center justify-between gap-4">
         <div>
           <h4 className="text-sm font-black uppercase tracking-tight text-slate-900 flex items-center gap-2">
             <Compass className="w-4 h-4 text-[#84cc16]" />
-            Advanced Google Maps Intelligence
+            Professional Google Map Explorer
           </h4>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Interactive 3D Grid • Live Route Estimator</p>
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Real-time Property Pins & Route Directions</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsFullScreen(true)}
-            className="px-4 py-2 bg-[#84cc16] hover:bg-[#65a30d] text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-sm flex items-center gap-2 transition-all cursor-pointer active:scale-95"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-            Expand Full Screen
-          </button>
-        </div>
+        <button
+          onClick={() => setIsFullScreen(true)}
+          className="px-4 py-2 bg-[#84cc16] hover:bg-[#65a30d] text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-sm flex items-center gap-2 transition-all cursor-pointer active:scale-95 shrink-0"
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+          Full Screen
+        </button>
       </div>
 
-      {/* Main Inline Canvas */}
-      <div className="relative aspect-square sm:aspect-[4/3] rounded-[2rem] border border-slate-200 overflow-hidden shadow-xl">
+      {/* Main Canvas */}
+      <div className="flex-1 w-full h-full min-h-[500px] relative overflow-hidden">
         {renderMapCanvas(false)}
       </div>
 

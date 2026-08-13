@@ -1381,9 +1381,9 @@ export default function App() {
               </div>
             </section>
 
-            <section className="grid grid-cols-1 xl:grid-cols-4 gap-10 items-start">
-              {/* LEFT: PROPERTY LIST & FILTERS (Col 1-3) */}
-              <div className="xl:col-span-3 space-y-10">
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+              {/* LEFT PANE: PROPERTY LIST & FILTERS (Col 1) */}
+              <div className="space-y-8">
                 {/* 🌟 USER DIRECT UPLOAD CALL TO ACTION BANNER */}
                 <motion.div 
                   initial={{ opacity: 0, y: 15 }}
@@ -1463,6 +1463,8 @@ export default function App() {
                             damping: 25,
                             delay: idx * 0.04 
                           }}
+                          onMouseEnter={() => setHoveredPropertyId(prop.id)}
+                          onMouseLeave={() => setHoveredPropertyId(null)}
                           onClick={() => setSelectedPropertyId(prop.id)}
                           className="group bg-white rounded-lg border border-stone-200/80 hover:border-stone-400/80 shadow-card hover:shadow-premium transition-all duration-300 cursor-pointer overflow-hidden flex flex-col"
                         >
@@ -1568,79 +1570,71 @@ export default function App() {
                 )}
               </div>
 
-              {/* RIGHT: SMART INSIGHTS SIDEBAR (Col 4) */}
-              <aside className="space-y-8 sticky top-28">
-                {/* 🎯 Workspace Selection */}
-                <div className="bg-white rounded-[2rem] p-6 border border-slate-200/60 shadow-md space-y-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-sage/10 rounded-lg flex items-center justify-center text-sage border border-sage/20">
-                      <Building className="w-5 h-5" />
+              {/* RIGHT PANE: PROFESSIONAL GOOGLE MAPS ENGINE (Col 2) */}
+              <aside className="sticky top-24 space-y-6">
+                {/* 🎯 Workspace & Commute Controls */}
+                <div className="bg-white rounded-[2rem] p-5 border border-slate-200/60 shadow-md space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-sage/10 rounded-lg flex items-center justify-center text-sage border border-sage/20">
+                        <Building className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <h4 className="text-xs font-black uppercase tracking-tight text-[#1A1D1F]">Commute Target</h4>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Active Workspace Destination</p>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <h4 className="text-xs font-black uppercase tracking-tight text-[#1A1D1F]">Active Workspace</h4>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Commute Optimization Hub</p>
+
+                    <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                      <button 
+                        onClick={() => setCommuteTransitMode('auto')}
+                        className={`px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${commuteTransitMode === 'auto' ? 'bg-[#12141C] text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                      >
+                        Car
+                      </button>
+                      <button 
+                        onClick={() => setCommuteTransitMode('metro')}
+                        className={`px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${commuteTransitMode === 'metro' ? 'bg-terracotta text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                      >
+                        Metro
+                      </button>
+                      <button 
+                        onClick={() => setCommuteTransitMode('bike')}
+                        className={`px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${commuteTransitMode === 'bike' ? 'bg-sage text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                      >
+                        Bike
+                      </button>
                     </div>
                   </div>
 
-                  <div className="space-y-2.5">
+                  <div className="grid grid-cols-3 gap-2">
                     {workplacesData.map((w) => (
                       <button
                         key={w.id}
                         onClick={() => setSelectedWorkplace(w.id)}
-                        className={`w-full text-left p-4 rounded-lg border transition-all flex items-center justify-between group cursor-pointer ${
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                           selectedWorkplace === w.id 
-                            ? 'bg-terracotta border-terracotta text-white shadow-md' 
-                            : 'bg-slate-50 border-transparent text-[#1A1D1F] hover:bg-slate-100'
+                            ? 'bg-[#12141C] border-[#12141C] text-white shadow-md' 
+                            : 'bg-slate-50 border-slate-200/60 text-[#1A1D1F] hover:bg-slate-100'
                         }`}
                       >
-                        <div className="min-w-0">
-                          <p className="text-xs font-black truncate leading-tight">{w.name}</p>
-                          <p className={`text-[9px] font-bold mt-1 ${selectedWorkplace === w.id ? 'text-white/70' : 'text-slate-400'}`}>
-                            {w.zone} Zone
-                          </p>
-                        </div>
-                        {selectedWorkplace === w.id && <ChevronRight className="w-4 h-4 shrink-0 text-white" />}
+                        <p className="text-[10px] font-black truncate">{w.name.split(' ')[0]}</p>
+                        <p className={`text-[8px] font-bold mt-0.5 ${selectedWorkplace === w.id ? 'text-white/70' : 'text-slate-400'}`}>
+                          {w.zone}
+                        </p>
                       </button>
                     ))}
                   </div>
-
-                  <div className="pt-2 flex items-center gap-2">
-                    <button 
-                       onClick={() => setCommuteTransitMode('auto')}
-                       className={`flex-1 h-10 rounded-lg flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer border ${commuteTransitMode === 'auto' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100'}`}
-                    >
-                      <Zap className="w-3 h-3" />
-                      Auto
-                    </button>
-                    <button 
-                       onClick={() => setCommuteTransitMode('metro')}
-                       className={`flex-1 h-10 rounded-lg flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer border ${commuteTransitMode === 'metro' ? 'bg-terracotta/10 text-terracotta border-terracotta/20' : 'bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100'}`}
-                    >
-                      <Bus className="w-3 h-3" />
-                      Metro
-                    </button>
-                    <button 
-                       onClick={() => setCommuteTransitMode('bike')}
-                       className={`flex-1 h-10 rounded-lg flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer border ${commuteTransitMode === 'bike' ? 'bg-sage/10 text-sage border border-sage/20' : 'bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100'}`}
-                    >
-                      <Bike className="w-3 h-3" />
-                      Bike
-                    </button>
-                  </div>
                 </div>
 
-                {/* 🗺️ Neighborhood Pulse */}
-                <div className="bg-white rounded-[2rem] p-6 border border-slate-200/60 shadow-md">
+                {/* 🗺️ Professional Google Maps Canvas */}
+                <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl overflow-hidden min-h-[600px] h-[calc(100vh-160px)]">
                   <NeighborhoodMap 
                     selectedZone={selectedCity === 'All' ? selectedMapNeighborhood : selectedCity}
                     onZoneSelect={(zone) => {
                       setSelectedCity(zone);
                       setSelectedMapNeighborhood(zone);
-                      const elem = document.getElementById('handpicked-properties');
-                      if (elem) {
-                        elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                      showToast(`Centered list view on ${zone} properties`);
+                      showToast(`Centered view on ${zone} properties`);
                     }}
                     neighborhoodData={neighborhoodData}
                     transitMode={commuteTransitMode}
