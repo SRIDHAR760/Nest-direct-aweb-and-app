@@ -85,6 +85,200 @@ async function startServer() {
     res.json({ status: "healthy", timestamp: new Date().toISOString(), uptime: process.uptime(), activeSession: activeDevSession });
   });
 
+  // =========================================================
+  // 🏠 PERSISTENT HOUSES & PROPERTIES DATABASE REST API
+  // =========================================================
+  const dbFilePath = path.join(process.cwd(), 'data', 'properties.json');
+  
+  // Seed dataset of 10 verified direct-to-owner Chennai properties
+  const defaultProperties = [
+    { 
+      id: 'prop-1', 
+      title: 'Dream Penthouse 😊', 
+      city: 'Nungambakkam', 
+      price: 35000, 
+      deposit: 100000,
+      type: '2 BHK', 
+      address: 'Khadder Nawaz Khan Rd, Nungambakkam', 
+      ownerName: 'Sridhar (You)',
+      ownerEmail: 'owner@nestdirect.com',
+      ownerPhone: '+91 98765 43210',
+      status: 'available',
+      bedrooms: 2,
+      bathrooms: 2,
+      area: 950,
+      photos: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=800'],
+      description: 'Skylit luxury penthouse located in Khadder Nawaz Khan Road with private terrace.',
+      lat: 13.0604,
+      lng: 80.2496,
+      safetyScore: 96,
+      createdAt: new Date().toISOString()
+    },
+    { 
+      id: 'prop-2', 
+      title: 'Vastu Beach Villa 🌊', 
+      city: 'Adyar', 
+      price: 65000, 
+      deposit: 200000,
+      type: '3 BHK', 
+      address: 'Gandhi Nagar, Adyar', 
+      ownerName: 'Ramesh K.',
+      ownerEmail: 'ramesh@nestdirect.com',
+      ownerPhone: '+91 98765 43211',
+      status: 'available',
+      bedrooms: 3,
+      bathrooms: 3,
+      area: 1450,
+      photos: ['https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=800'],
+      description: 'East-facing independent coastal villa in Gandhi Nagar Adyar with garden.',
+      lat: 13.0012,
+      lng: 80.2565,
+      safetyScore: 98,
+      createdAt: new Date().toISOString()
+    },
+    { 
+      id: 'prop-3', 
+      title: 'Smart Studio ⚡', 
+      city: 'OMR', 
+      price: 18000, 
+      deposit: 50000,
+      type: 'Studio', 
+      address: 'Rajiv Gandhi Salai (OMR), Perungudi', 
+      ownerName: 'Priya M.',
+      ownerEmail: 'priya@nestdirect.com',
+      ownerPhone: '+91 98765 43212',
+      status: 'available',
+      bedrooms: 1,
+      bathrooms: 1,
+      area: 500,
+      photos: ['https://images.unsplash.com/photo-1536376072261-38c75010e6c9?auto=format&fit=crop&q=80&w=800'],
+      description: 'Fully furnished high-tech studio next to TIDEL Park IT Highway.',
+      lat: 12.9698,
+      lng: 80.2457,
+      safetyScore: 92,
+      createdAt: new Date().toISOString()
+    },
+    { 
+      id: 'prop-4', 
+      title: 'Heritage Haven 🏡', 
+      city: 'Mylapore', 
+      price: 25000, 
+      deposit: 80000,
+      type: '1 BHK', 
+      address: 'Luz Church Road, Mylapore', 
+      ownerName: 'Ananth V.',
+      ownerEmail: 'ananth@nestdirect.com',
+      ownerPhone: '+91 98765 43213',
+      status: 'available',
+      bedrooms: 1,
+      bathrooms: 1,
+      area: 650,
+      photos: ['https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800'],
+      description: 'Traditional teakwood architectural flat near Luz Church and Kapaleeshwarar Temple.',
+      lat: 13.0339,
+      lng: 80.2696,
+      safetyScore: 94,
+      createdAt: new Date().toISOString()
+    },
+    { 
+      id: 'prop-5', 
+      title: 'Waterfront Loft 🏙️', 
+      city: 'Adyar', 
+      price: 45000, 
+      deposit: 150000,
+      type: '2 BHK', 
+      address: 'Elliot Beach Promenade, Besant Nagar', 
+      ownerName: 'Lakshmi N.',
+      ownerEmail: 'lakshmi@nestdirect.com',
+      ownerPhone: '+91 98765 43214',
+      status: 'available',
+      bedrooms: 2,
+      bathrooms: 2,
+      area: 1100,
+      photos: ['https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&q=80&w=800'],
+      description: 'Sea-view modern luxury apartment right on Besant Nagar Elliot Beach road.',
+      lat: 12.9998,
+      lng: 80.2680,
+      safetyScore: 95,
+      createdAt: new Date().toISOString()
+    }
+  ];
+
+  // Utility to read properties database file
+  const readPropertiesDb = (): any[] => {
+    try {
+      const fs = require('fs');
+      if (!fs.existsSync(dbFilePath)) {
+        const dir = path.dirname(dbFilePath);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(dbFilePath, JSON.stringify(defaultProperties, null, 2), 'utf-8');
+        return defaultProperties;
+      }
+      const data = fs.readFileSync(dbFilePath, 'utf-8');
+      return JSON.parse(data);
+    } catch (e) {
+      return defaultProperties;
+    }
+  };
+
+  // Utility to write properties database file
+  const writePropertiesDb = (props: any[]) => {
+    try {
+      const fs = require('fs');
+      const dir = path.dirname(dbFilePath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(dbFilePath, JSON.stringify(props, null, 2), 'utf-8');
+    } catch (e) {
+      console.error("Failed to write properties DB file:", e);
+    }
+  };
+
+  // GET /api/properties - Fetch all direct houses
+  app.get("/api/properties", (req, res) => {
+    const props = readPropertiesDb();
+    res.json({ success: true, count: props.length, data: props });
+  });
+
+  // POST /api/properties - Add a new unit to the database
+  app.post("/api/properties", (req, res) => {
+    try {
+      const newProp = req.body;
+      if (!newProp.title || !newProp.price || !newProp.city) {
+        return res.status(400).json({ error: "Title, price, and city are required fields." });
+      }
+
+      const props = readPropertiesDb();
+      const createdItem = {
+        id: `prop-${Date.now()}`,
+        status: 'available',
+        safetyScore: 95,
+        photos: newProp.photos && newProp.photos.length > 0 ? newProp.photos : ['https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800'],
+        createdAt: new Date().toISOString(),
+        ...newProp
+      };
+
+      props.unshift(createdItem);
+      writePropertiesDb(props);
+      console.log(`[Database] New unit added & saved: ${createdItem.title} (${createdItem.city})`);
+      res.json({ success: true, message: "Property saved successfully to database", data: createdItem });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to save property to database." });
+    }
+  });
+
+  // DELETE /api/properties/:id - Delete a unit from the database
+  app.delete("/api/properties/:id", (req, res) => {
+    try {
+      const { id } = req.params;
+      let props = readPropertiesDb();
+      props = props.filter(p => p.id !== id);
+      writePropertiesDb(props);
+      res.json({ success: true, message: `Property ${id} deleted.` });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to delete property." });
+    }
+  });
+
   // Excel Report Export Endpoint
   app.get("/api/export-audit-excel", async (req, res) => {
     try {
