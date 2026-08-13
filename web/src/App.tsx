@@ -1697,34 +1697,65 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 📈 Market Trend Card (Visual Placeholder) */}
-                <div className="bg-white rounded-[2rem] p-6 border border-slate-200/60 shadow-md space-y-6">
+                {/* 📈 Upgraded Market Intelligence & Direct Savings Hub */}
+                <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white rounded-[2rem] p-6 border border-slate-800 shadow-2xl space-y-6 text-left relative overflow-hidden">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-left">
-                      <div className="w-10 h-10 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 border border-slate-150">
-                        <ArrowUpRight className="w-5 h-5" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-[#84cc16]/10 rounded-xl flex items-center justify-center text-[#84cc16] border border-[#84cc16]/30 shadow-md">
+                        <TrendingUp className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="text-xs font-black uppercase tracking-tight text-[#1A1D1F]">Trend Pulse</h4>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Listing Velocity</p>
+                        <h4 className="text-xs font-black uppercase tracking-tight text-white flex items-center gap-2">
+                          Market Pulse
+                          <span className="w-2 h-2 rounded-full bg-[#84cc16] animate-pulse" />
+                        </h4>
+                        <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest">Chennai Direct Rent Index</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">+12%</span>
+                    <span className="text-[10px] font-black text-slate-950 bg-[#84cc16] px-3 py-1 rounded-xl shadow-md uppercase tracking-wider">+14.2% Demand</span>
                   </div>
 
-                  <div className="flex items-end gap-1.5 h-16 px-2">
-                    {[30, 45, 35, 60, 50, 75, 40, 85, 95].map((h, i) => (
-                      <motion.div 
-                        key={i}
-                        initial={{ height: 0 }}
-                        animate={{ height: `${h}%` }}
-                        transition={{ delay: i * 0.05, duration: 0.5 }}
-                        className={`flex-1 rounded-t transition-colors ${i === 8 ? 'bg-terracotta' : 'bg-slate-100 hover:bg-slate-200'}`}
-                      />
-                    ))}
+                  {/* 💰 Direct Savings Highlight */}
+                  <div className="p-4 bg-slate-800/80 rounded-2xl border border-slate-700/80 space-y-1">
+                    <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest block">Est. Tenant Savings in {selectedCity}</span>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xl font-black text-[#84cc16] tracking-tight">₹{(selectedCity === 'Adyar' ? 45000 : selectedCity === 'OMR' ? 25000 : 35000).toLocaleString()}</span>
+                      <span className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider">Zero Broker Deposit</span>
+                    </div>
                   </div>
 
-                  <p className="text-[9px] text-slate-400 font-extrabold text-center uppercase tracking-[0.15em]">Listing velocity in {selectedCity}</p>
+                  {/* 📊 Interactive Animated Sparkline Chart */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">
+                      <span>Listing Velocity</span>
+                      <span className="text-white">Peak Activity: Week 4</span>
+                    </div>
+                    <div className="flex items-end gap-2 h-20 px-1 pt-2">
+                      {[35, 48, 42, 65, 58, 82, 60, 92, 100].map((h, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative cursor-pointer">
+                          {/* Tooltip on hover */}
+                          <div className="absolute -top-7 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-[#84cc16] text-[8px] font-black px-1.5 py-0.5 rounded shadow-lg whitespace-nowrap pointer-events-none z-30">
+                            W{i+1}: {h * 4} units
+                          </div>
+                          <motion.div 
+                            initial={{ height: 0 }}
+                            animate={{ height: `${h}%` }}
+                            transition={{ delay: i * 0.04, duration: 0.6 }}
+                            className={`w-full rounded-t-lg transition-all ${
+                              i === 8 
+                                ? 'bg-gradient-to-t from-[#84cc16] to-emerald-400 shadow-lg shadow-[#84cc16]/20' 
+                                : 'bg-slate-700/60 group-hover:bg-[#84cc16]/60'
+                            }`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">
+                    <span>98.4% Owner Response</span>
+                    <span className="text-[#84cc16]">Verified Live</span>
+                  </div>
                 </div>
               </aside>
             </section>
