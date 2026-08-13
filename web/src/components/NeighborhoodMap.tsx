@@ -1,10 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   MapPin, Compass, Navigation, Maximize2, Minimize2, X, 
   Search, Home, Sparkles, Building, Car, Bus, Bike, 
-  Layers, Plus, Minus, Target, Star, Utensils, GraduationCap, 
-  ShieldCheck, Eye, Zap, Flame, Route, Sliders, CheckCircle, ExternalLink
+  Layers, Plus, Minus, Target, Star, ShieldCheck, Flame, Zap
 } from 'lucide-react';
 
 interface NeighborhoodProps {
@@ -28,26 +27,26 @@ interface MapProperty {
   rating: number;
   bedrooms: number;
   area: number;
-  x: number;
-  y: number;
+  lat: number;
+  lng: number;
   emoji: string;
   safetyScore: number;
 }
 
-const mapProperties: MapProperty[] = [
+const realChennaiProperties: MapProperty[] = [
   { 
     id: 'prop-1', 
     title: 'Dream Penthouse 😊', 
     city: 'Nungambakkam', 
     price: 35000, 
     type: '2 BHK', 
-    address: 'Greene St & Main St Corner', 
+    address: 'Khadder Nawaz Khan Rd, Nungambakkam', 
     image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=800',
     rating: 4.9,
     bedrooms: 2,
     area: 950,
-    x: 85, 
-    y: 75, 
+    lat: 13.0604,
+    lng: 80.2496,
     emoji: '😊',
     safetyScore: 96
   },
@@ -57,13 +56,13 @@ const mapProperties: MapProperty[] = [
     city: 'Mylapore', 
     price: 25000, 
     type: '1 BHK', 
-    address: 'Luz Church Road Junction', 
+    address: 'Luz Church Road, Mylapore', 
     image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800',
     rating: 4.8,
     bedrooms: 1,
     area: 650,
-    x: 175, 
-    y: 85, 
+    lat: 13.0339,
+    lng: 80.2696,
     emoji: '🏡',
     safetyScore: 94
   },
@@ -73,13 +72,13 @@ const mapProperties: MapProperty[] = [
     city: 'Adyar', 
     price: 65000, 
     type: '3 BHK', 
-    address: 'Adyar Beachfront Avenue', 
+    address: 'Gandhi Nagar, Adyar', 
     image: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=800',
     rating: 5.0,
     bedrooms: 3,
     area: 1450,
-    x: 195, 
-    y: 175, 
+    lat: 13.0012,
+    lng: 80.2565,
     emoji: '🌊',
     safetyScore: 98
   },
@@ -89,13 +88,13 @@ const mapProperties: MapProperty[] = [
     city: 'Adyar', 
     price: 45000, 
     type: '2 BHK', 
-    address: 'Besant Nagar Promenade', 
+    address: 'Elliot Beach Promenade, Besant Nagar', 
     image: 'https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&q=80&w=800',
     rating: 4.7,
     bedrooms: 2,
     area: 1100,
-    x: 220, 
-    y: 195, 
+    lat: 12.9998,
+    lng: 80.2680,
     emoji: '🏙️',
     safetyScore: 95
   },
@@ -105,13 +104,13 @@ const mapProperties: MapProperty[] = [
     city: 'OMR', 
     price: 18000, 
     type: 'Studio', 
-    address: 'TIDEL Park IT Highway', 
+    address: 'Rajiv Gandhi Salai (OMR), Perungudi', 
     image: 'https://images.unsplash.com/photo-1536376072261-38c75010e6c9?auto=format&fit=crop&q=80&w=800',
     rating: 4.6,
     bedrooms: 1,
     area: 500,
-    x: 135, 
-    y: 245, 
+    lat: 12.9698,
+    lng: 80.2457,
     emoji: '⚡',
     safetyScore: 92
   },
@@ -121,30 +120,25 @@ const mapProperties: MapProperty[] = [
     city: 'OMR', 
     price: 32000, 
     type: '2 BHK', 
-    address: 'ECR Green Corridor', 
+    address: 'ECR Link Road, Sholinganallur', 
     image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=800',
     rating: 4.8,
     bedrooms: 2,
     area: 900,
-    x: 160, 
-    y: 275, 
+    lat: 12.9010,
+    lng: 80.2279,
     emoji: '🌿',
     safetyScore: 93
   },
 ];
 
-const pois = [
-  { id: 'dominos', label: "Domino's Pizza", type: 'food', x: 45, y: 40 },
-  { id: 'school', label: 'Journalism & Mass Comm', type: 'edu', x: 165, y: 35 },
-  { id: 'park', label: 'Greene St Park', type: 'park', x: 245, y: 80 },
-  { id: 'science', label: 'Physical Science Center', type: 'edu', x: 85, y: 220 },
-];
-
-const workplaces = [
-  { id: 'iitm', name: 'IIT Madras Park', city: 'Adyar', x: 180, y: 185, time: '8 mins' },
-  { id: 'tidel', name: 'TIDEL Park IT Highway', city: 'OMR', x: 145, y: 260, time: '12 mins' },
-  { id: 'spencer', name: 'Spencer Plaza', city: 'Nungambakkam', x: 65, y: 55, time: '6 mins' },
-];
+const zoneCoords: Record<string, [number, number]> = {
+  'Adyar': [13.0012, 80.2565],
+  'Mylapore': [13.0339, 80.2696],
+  'Nungambakkam': [13.0604, 80.2496],
+  'OMR': [12.9698, 80.2457],
+  'All': [13.0300, 80.2500]
+};
 
 const NeighborhoodMap: React.FC<NeighborhoodProps> = ({ 
   selectedZone, 
@@ -155,50 +149,136 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
   onPropertySelect,
   highlightedPropertyId
 }) => {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markersRef = useRef<Record<string, any>>({});
+  const polylineRef = useRef<any>(null);
+
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [hoveredProp, setHoveredProp] = useState<MapProperty | null>(null);
-  const [selectedProp, setSelectedProp] = useState<MapProperty | null>(mapProperties[0]);
-  const [activeWorkplace, setActiveWorkplace] = useState(workplaces[0]);
-  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
-  const [is3DTilt, setIs3DTilt] = useState(false);
-  const [heatmapMode, setHeatmapMode] = useState<'none' | 'price' | 'safety'>('none');
-  const [mapStyle, setMapStyle] = useState<'streets' | 'satellite'>('streets');
+  const [mapStyle, setMapStyle] = useState<'streets' | 'satellite' | 'dark'>('streets');
+  const [selectedProp, setSelectedProp] = useState<MapProperty | null>(realChennaiProperties[0]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLeafletLoaded, setIsLeafletLoaded] = useState(false);
 
-  const currentZone = neighborhoodData[selectedZone] || neighborhoodData['Adyar'];
-
-  const filteredProperties = useMemo(() => {
-    return mapProperties.filter(p => 
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.type.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery]);
-
-  const activePropTarget = useMemo(() => {
-    if (highlightedPropertyId) {
-      const match = mapProperties.find(p => p.id === highlightedPropertyId);
-      if (match) return match;
+  // Dynamically load Leaflet JS script if not present
+  useEffect(() => {
+    if ((window as any).L) {
+      setIsLeafletLoaded(true);
+      return;
     }
-    return selectedProp || mapProperties[0];
-  }, [highlightedPropertyId, selectedProp]);
 
-  // Robust SVG route curve path calculation
-  const routeCurvePath = useMemo(() => {
-    const targetX = activePropTarget?.x ?? 180;
-    const targetY = activePropTarget?.y ?? 185;
-    const startX = activeWorkplace?.x ?? 180;
-    const startY = activeWorkplace?.y ?? 185;
-    const cpX = (startX + targetX) / 2 - (startY - targetY) * 0.25;
-    const cpY = (startY + targetY) / 2 + (startX - targetX) * 0.25;
-    return `M ${startX},${startY} Q ${cpX},${cpY} ${targetX},${targetY}`;
-  }, [activePropTarget, activeWorkplace]);
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
+    script.crossOrigin = '';
+    script.onload = () => setIsLeafletLoaded(true);
+    document.body.appendChild(script);
+  }, []);
 
-  const renderMapCanvas = (full: boolean = false) => (
-    <div className="relative w-full h-full min-h-[500px] md:min-h-[650px] bg-[#E5E3DF] overflow-hidden select-none flex flex-col">
+  // Initialize & update Leaflet Real-time Map
+  useEffect(() => {
+    if (!isLeafletLoaded || !mapContainerRef.current || !(window as any).L) return;
+    const L = (window as any).L;
+
+    if (!mapInstanceRef.current) {
+      // Create Leaflet Map Instance
+      const center: [number, number] = zoneCoords[selectedZone] || [13.0300, 80.2500];
+      const map = L.map(mapContainerRef.current, {
+        center,
+        zoom: 13,
+        zoomControl: false
+      });
+
+      // Default OpenStreetMap Tile Layer
+      const streetTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        maxZoom: 19
+      });
+      streetTile.addTo(map);
+      mapInstanceRef.current = map;
+
+      // Add Custom Green House Markers
+      realChennaiProperties.forEach(prop => {
+        const customIcon = L.divIcon({
+          className: 'custom-leaflet-marker',
+          html: `
+            <div class="group cursor-pointer transform hover:scale-110 transition-transform">
+              <div class="bg-[#84cc16] text-slate-950 px-2.5 py-1 rounded-full text-[10px] font-black uppercase shadow-lg border-2 border-white flex items-center gap-1 whitespace-nowrap">
+                <span>${prop.emoji}</span>
+                <span>${prop.title.split(' ')[0]}</span>
+                <span class="bg-slate-950 text-white px-1.5 py-0.2 rounded-md text-[8px]">₹${(prop.price/1000).toFixed(0)}k</span>
+              </div>
+            </div>
+          `,
+          iconSize: [120, 30],
+          iconAnchor: [60, 15]
+        });
+
+        const marker = L.marker([prop.lat, prop.lng], { icon: customIcon }).addTo(map);
+        marker.on('click', () => {
+          setSelectedProp(prop);
+          onZoneSelect(prop.city);
+          if (onPropertySelect) onPropertySelect(prop.id);
+        });
+
+        markersRef.current[prop.id] = marker;
+      });
+    } else {
+      // Map already initialized - resize cleanly
+      setTimeout(() => {
+        mapInstanceRef.current.invalidateSize();
+      }, 200);
+    }
+  }, [isLeafletLoaded, isFullScreen]);
+
+  // Update Tile Style Layer dynamically
+  useEffect(() => {
+    if (!mapInstanceRef.current || !(window as any).L) return;
+    const L = (window as any).L;
+    const map = mapInstanceRef.current;
+
+    // Remove existing tile layers
+    map.eachLayer((layer: any) => {
+      if (layer instanceof L.TileLayer) {
+        map.removeLayer(layer);
+      }
+    });
+
+    let tileUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    if (mapStyle === 'satellite') {
+      tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+    } else if (mapStyle === 'dark') {
+      tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    }
+
+    L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(map);
+  }, [mapStyle]);
+
+  // Pan Map when selectedZone or highlightedPropertyId changes
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+
+    if (highlightedPropertyId) {
+      const targetProp = realChennaiProperties.find(p => p.id === highlightedPropertyId);
+      if (targetProp) {
+        map.flyTo([targetProp.lat, targetProp.lng], 15, { duration: 1.2 });
+        setSelectedProp(targetProp);
+        return;
+      }
+    }
+
+    const coords = zoneCoords[selectedZone];
+    if (coords) {
+      map.flyTo(coords, 13, { duration: 1.2 });
+    }
+  }, [selectedZone, highlightedPropertyId]);
+
+  return (
+    <div className="w-full h-full min-h-[550px] flex flex-col text-left relative overflow-hidden bg-slate-900 rounded-[2.5rem]" id="realtime-leaflet-map-wrapper">
       
-      {/* 🧭 Google Maps Header Toolbar Controls */}
-      <div className="p-3 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 z-20">
+      {/* 🧭 Top Floating Real-time Controls Header */}
+      <div className="p-3 bg-slate-900/95 backdrop-blur-md text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 z-20">
         <div className="flex items-center gap-3 flex-1 min-w-[200px]">
           <div className="w-8 h-8 rounded-lg bg-[#84cc16] flex items-center justify-center text-slate-950 font-black shadow-md shrink-0">
             <Navigation className="w-4 h-4 transform -rotate-45" />
@@ -207,15 +287,23 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search ward or street..."
+              placeholder="Search Chennai street or ward..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                const query = e.target.value.toLowerCase();
+                const matched = realChennaiProperties.find(p => p.title.toLowerCase().includes(query) || p.city.toLowerCase().includes(query));
+                if (matched && mapInstanceRef.current) {
+                  mapInstanceRef.current.flyTo([matched.lat, matched.lng], 15);
+                  setSelectedProp(matched);
+                }
+              }}
               className="w-full bg-slate-800 text-white placeholder:text-slate-400 text-xs font-bold pl-8 pr-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:border-[#84cc16]"
             />
           </div>
         </div>
 
-        {/* Map Type Mode Controls */}
+        {/* Real-Time Layer Switcher */}
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setMapStyle('streets')}
@@ -223,7 +311,7 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
               mapStyle === 'streets' ? 'bg-[#84cc16] text-slate-950 shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white'
             }`}
           >
-            Map
+            Street Map
           </button>
           <button
             onClick={() => setMapStyle('satellite')}
@@ -233,290 +321,55 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
           >
             Satellite
           </button>
-        </div>
-      </div>
-
-      {/* 🗺️ Main Map SVG Canvas (Fills entire container) */}
-      <div className="flex-1 w-full h-full relative overflow-hidden">
-        <div 
-          className="w-full h-full origin-center transition-transform duration-500 ease-out"
-          style={{
-            transform: is3DTilt ? 'rotateX(25deg) rotateZ(-4deg) scale(1.1)' : 'none'
-          }}
-        >
-          <svg 
-            viewBox="0 0 300 300" 
-            preserveAspectRatio="xMidYMid slice"
-            className="w-full h-full"
-            style={{ transform: `scale(${zoomLevel})`, transition: 'transform 0.2s ease-out' }}
+          <button
+            onClick={() => setIsFullScreen(!isFullScreen)}
+            className="w-8 h-8 bg-slate-800 hover:bg-[#84cc16] text-white hover:text-slate-950 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+            title={isFullScreen ? "Exit Fullscreen" : "Fullscreen Map"}
           >
-            <defs>
-              {/* GIS Grid Pattern */}
-              <pattern id="cleanGrid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <rect width="40" height="40" fill={mapStyle === 'satellite' ? '#0f172a' : '#f8fafc'} />
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke={mapStyle === 'satellite' ? '#1e293b' : '#e2e8f0'} strokeWidth="1" />
-              </pattern>
-
-              {/* Building Footprints Pattern */}
-              <pattern id="cleanBldg" width="20" height="20" patternUnits="userSpaceOnUse">
-                <rect x="2" y="2" width="7" height="7" fill="#e2e8f0" rx="1" />
-                <rect x="11" y="2" width="7" height="7" fill="#cbd5e1" rx="1" />
-                <rect x="2" y="11" width="16" height="7" fill="#f1f5f9" rx="1" />
-              </pattern>
-
-              {/* Glow Drop Shadow */}
-              <filter id="cleanShadow" x="-30%" y="-30%" width="160%" height="160%">
-                <feDropShadow dx="0" dy="3" stdDeviation="2.5" floodColor="#000000" floodOpacity="0.25" />
-              </filter>
-
-              {/* Heatmap Gradients */}
-              <radialGradient id="heatPriceGrad" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.5" />
-                <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
-              </radialGradient>
-              <radialGradient id="heatSafetyGrad" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#22c55e" stopOpacity="0.45" />
-                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.05" />
-              </radialGradient>
-            </defs>
-
-            {/* 1. Base GIS Grid */}
-            <rect width="300" height="300" fill="url(#cleanGrid)" />
-            <rect width="300" height="300" fill="url(#cleanBldg)" opacity="0.3" />
-
-            {/* 2. Heatmap Overlay */}
-            {heatmapMode === 'price' && (
-              <circle cx="195" cy="175" r="90" fill="url(#heatPriceGrad)" className="pointer-events-none transition-all" />
-            )}
-            {heatmapMode === 'safety' && (
-              <circle cx="195" cy="175" r="110" fill="url(#heatSafetyGrad)" className="pointer-events-none transition-all" />
-            )}
-
-            {/* 3. Ocean / Bay of Bengal */}
-            <path d="M 235,0 C 255,60 230,120 255,200 C 245,250 252,300 252,300 L 300,300 L 300,0 Z" fill={mapStyle === 'satellite' ? '#1e3a8a' : '#93c5fd'} />
-            <text x="272" y="80" className="font-sans text-[6.5px] fill-[#1e40af] font-black uppercase tracking-widest pointer-events-none" transform="rotate(90 272 80)">
-              Bay of Bengal
-            </text>
-
-            {/* 4. Major Road Networks with Labels */}
-            {/* Greene Street */}
-            <path d="M 0,110 L 300,50" fill="none" stroke="#22c55e" strokeWidth="6" opacity="0.85" />
-            <path d="M 0,110 L 300,50" fill="none" stroke="#ffffff" strokeWidth="3.5" />
-            <text x="140" y="72" className="font-sans text-[4.5px] fill-slate-800 font-extrabold pointer-events-none" transform="rotate(-11 140 72)">Greene St</text>
-
-            {/* Main Street */}
-            <path d="M 60,0 L 20,300" fill="none" stroke="#64748b" strokeWidth="6" />
-            <path d="M 60,0 L 20,300" fill="none" stroke="#ffffff" strokeWidth="4" />
-            <text x="45" y="120" className="font-sans text-[4.5px] fill-slate-700 font-bold pointer-events-none" transform="rotate(82 45 120)">Main St</text>
-
-            {/* OMR IT Highway */}
-            <path d="M 120,195 Q 165,230 195,235 T 145,295" fill="none" stroke="#eab308" strokeWidth="6" />
-            <path d="M 120,195 Q 165,230 195,235 T 145,295" fill="none" stroke="#ffffff" strokeWidth="4" />
-
-            {/* 5. Live Dynamic Route Path */}
-            <g className="pointer-events-none">
-              <path 
-                d={routeCurvePath} 
-                fill="none" 
-                stroke="#3b82f6" 
-                strokeWidth="5" 
-                strokeLinecap="round"
-                opacity="0.85"
-                filter="url(#cleanShadow)"
-              />
-              <path 
-                d={routeCurvePath} 
-                fill="none" 
-                stroke="#ffffff" 
-                strokeWidth="2" 
-                strokeDasharray="4 6"
-                className="animate-route-dash"
-              />
-
-              {/* Commute Time Badge */}
-              <g transform={`translate(${(activeWorkplace.x + (activePropTarget?.x || 180)) / 2}, ${(activeWorkplace.y + (activePropTarget?.y || 185)) / 2})`}>
-                <rect x="-30" y="-10" width="60" height="20" rx="10" fill="#0f172a" filter="url(#cleanShadow)" stroke="#3b82f6" strokeWidth="1" />
-                <text x="0" y="3" textAnchor="middle" fill="#ffffff" className="font-sans text-[7px] font-black uppercase tracking-wider">
-                  ⚡ {activeWorkplace.time}
-                </text>
-              </g>
-            </g>
-
-            {/* 6. Workplace Nodes */}
-            {workplaces.map((w) => {
-              const isActive = activeWorkplace.id === w.id;
-              return (
-                <g 
-                  key={`wp-${w.id}`}
-                  className="cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveWorkplace(w);
-                  }}
-                >
-                  <circle cx={w.x} cy={w.y} r={isActive ? 9 : 6} fill="#0f172a" stroke="#ffffff" strokeWidth="1.5" filter="url(#cleanShadow)" />
-                  <circle cx={w.x} cy={w.y} r="3.5" fill="#eab308" />
-                </g>
-              );
-            })}
-
-            {/* 7. Green House Pins with Custom Emoji Titles matching Screenshot */}
-            {filteredProperties.map((prop) => {
-              const isSelected = activePropTarget?.id === prop.id || hoveredProp?.id === prop.id;
-
-              return (
-                <g 
-                  key={prop.id}
-                  className="cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedProp(prop);
-                    onZoneSelect(prop.city);
-                    if (onPropertySelect) onPropertySelect(prop.id);
-                  }}
-                  onMouseEnter={() => setHoveredProp(prop)}
-                  onMouseLeave={() => setHoveredProp(null)}
-                >
-                  {/* Pulsing Target Ring */}
-                  {isSelected && (
-                    <circle cx={prop.x} cy={prop.y} r="18" fill="#84cc16" fillOpacity="0.35" className="animate-ping" />
-                  )}
-
-                  {/* Green Pin Shape */}
-                  <g transform={`translate(${prop.x}, ${prop.y})`} filter="url(#cleanShadow)">
-                    <path 
-                      d="M 0,0 C -8,-10 -12,-16 0,-24 C 12,-16 8,-10 0,0 Z" 
-                      fill={isSelected ? '#65a30d' : '#84cc16'} 
-                      stroke="#ffffff" 
-                      strokeWidth="1.5" 
-                    />
-                    <circle cx="0" cy="-14" r="6.5" fill="#ffffff" />
-                    <path d="M -3.5,-14 L 0,-17.5 L 3.5,-14 L 3.5,-10.5 L -3.5,-10.5 Z" fill="#ef4444" />
-                    <rect x="-1" y="-13" width="2.5" height="2.5" fill="#3b82f6" />
-                  </g>
-
-                  {/* Price Tag Pill Badge */}
-                  <g transform={`translate(${prop.x}, ${prop.y + 13})`} filter="url(#cleanShadow)">
-                    <rect 
-                      x="-42" 
-                      y="-9" 
-                      width="84" 
-                      height="18" 
-                      rx="9" 
-                      fill={isSelected ? '#84cc16' : '#a3e635'} 
-                      stroke="#ffffff" 
-                      strokeWidth="1.5" 
-                    />
-                    <text 
-                      x="0" 
-                      y="3" 
-                      textAnchor="middle" 
-                      fill="#1a2e05" 
-                      className="font-sans text-[6px] font-black tracking-tight select-none"
-                    >
-                      {prop.title} • ₹{(prop.price/1000).toFixed(0)}k
-                    </text>
-                  </g>
-                </g>
-              );
-            })}
-          </svg>
+            {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
         </div>
       </div>
 
-      {/* Hardware-accelerated CSS Route Animation */}
-      <style>{`
-        .animate-route-dash {
-          stroke-dashoffset: 0;
-          animation: routeDash 1.5s linear infinite;
-        }
-        @keyframes routeDash {
-          to { stroke-dashoffset: -20; }
-        }
-      `}</style>
-
-      {/* 🎛️ Map Controls Bar (Top & Right) */}
-      <div className="absolute top-16 right-3 flex flex-col gap-2 z-20 pointer-events-auto">
-        <button 
-          onClick={(e) => { e.stopPropagation(); setIs3DTilt(!is3DTilt); }}
-          className={`w-9 h-9 rounded-xl shadow-lg flex items-center justify-center border font-black text-xs transition-all cursor-pointer ${
-            is3DTilt ? 'bg-[#84cc16] text-slate-950 border-white' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-100'
-          }`}
-          title="Toggle 3D Perspective View"
-        >
-          3D
-        </button>
-
-        <button 
-          onClick={(e) => { e.stopPropagation(); setHeatmapMode(prev => prev === 'none' ? 'price' : prev === 'price' ? 'safety' : 'none'); }}
-          className={`w-9 h-9 rounded-xl shadow-lg flex items-center justify-center border transition-all cursor-pointer ${
-            heatmapMode !== 'none' ? 'bg-[#3b82f6] text-white border-white' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-100'
-          }`}
-          title="Toggle Heatmap Overlay"
-        >
-          <Flame className="w-4 h-4" />
-        </button>
-
-        <button 
-          onClick={(e) => { e.stopPropagation(); setZoomLevel(prev => Math.min(prev + 0.2, 1.8)); }}
-          className="w-9 h-9 bg-white hover:bg-slate-100 text-slate-800 rounded-xl shadow-lg flex items-center justify-center border border-slate-200 cursor-pointer"
-          title="Zoom In"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-
-        <button 
-          onClick={(e) => { e.stopPropagation(); setZoomLevel(prev => Math.max(prev - 0.2, 0.8)); }}
-          className="w-9 h-9 bg-white hover:bg-slate-100 text-slate-800 rounded-xl shadow-lg flex items-center justify-center border border-slate-200 cursor-pointer"
-          title="Zoom Out"
-        >
-          <Minus className="w-4 h-4" />
-        </button>
-
-        <button 
-          onClick={(e) => { e.stopPropagation(); setIsFullScreen(!full); }}
-          className="w-9 h-9 bg-[#84cc16] hover:bg-[#65a30d] text-slate-950 rounded-xl shadow-lg flex items-center justify-center border border-white/40 cursor-pointer"
-          title={full ? "Exit Fullscreen" : "Fullscreen Map"}
-        >
-          {full ? <Minimize2 className="w-4.5 h-4.5" /> : <Maximize2 className="w-4.5 h-4.5" />}
-        </button>
+      {/* 🗺️ REAL-TIME LEAFLET / OPENSTREETMAP CANVAS */}
+      <div className="flex-1 w-full h-full min-h-[500px] relative z-10">
+        <div ref={mapContainerRef} className="w-full h-full min-h-[500px]" />
       </div>
 
-      {/* 🏡 High-Resolution Property Preview Card (Bottom) */}
-      {activePropTarget && (
-        <div className="absolute inset-x-3 bottom-3 z-20 pointer-events-auto">
+      {/* 🏡 Bottom Property Card Overlay */}
+      {selectedProp && (
+        <div className="absolute inset-x-3 bottom-3 z-30 pointer-events-auto">
           <motion.div 
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-slate-900/95 backdrop-blur-md p-4 rounded-3xl border border-slate-800 shadow-2xl text-left flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
           >
             <div className="flex items-center gap-4">
-              <img src={activePropTarget.image} alt="" className="w-16 h-16 rounded-2xl object-cover border border-white/10 shrink-0 shadow-md" />
+              <img src={selectedProp.image} alt="" className="w-16 h-16 rounded-2xl object-cover border border-white/10 shrink-0 shadow-md" />
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 bg-[#84cc16] text-slate-950 font-black rounded-md text-[9px] uppercase tracking-wider">
-                    {activePropTarget.title}
+                    {selectedProp.title}
                   </span>
                   <span className="text-[10px] text-amber-400 font-extrabold flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-amber-400" /> {activePropTarget.rating}
+                    <Star className="w-3 h-3 fill-amber-400" /> {selectedProp.rating}
                   </span>
                 </div>
                 <h4 className="text-sm font-black text-white truncate">
-                  ₹{activePropTarget.price.toLocaleString()}/mo • {activePropTarget.bedrooms} BHK ({activePropTarget.area} sqft)
+                  ₹{selectedProp.price.toLocaleString()}/mo • {selectedProp.bedrooms} BHK ({selectedProp.area} sqft)
                 </h4>
                 <p className="text-[10px] text-slate-400 font-medium truncate flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-[#84cc16]" /> Safety Score: {activePropTarget.safetyScore}/100 • Direct Owner
+                  <ShieldCheck className="w-3 h-3 text-[#84cc16]" /> {selectedProp.address}
                 </p>
               </div>
             </div>
 
             <div className="flex w-full sm:w-auto gap-2">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onZoneSelect(activePropTarget.city);
-                  if (onPropertySelect) onPropertySelect(activePropTarget.id);
-                  if (full) setIsFullScreen(false);
+                onClick={() => {
+                  onZoneSelect(selectedProp.city);
+                  if (onPropertySelect) onPropertySelect(selectedProp.id);
+                  if (isFullScreen) setIsFullScreen(false);
                 }}
                 className="flex-1 sm:flex-none px-5 py-3 bg-[#84cc16] hover:bg-[#65a30d] text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
@@ -527,68 +380,37 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
           </motion.div>
         </div>
       )}
-    </div>
-  );
 
-  return (
-    <div className="w-full h-full min-h-[550px] flex flex-col text-left" id="professional-google-map-root">
-      {/* Header Bar */}
-      <div className="p-4 bg-white border-b border-slate-200 flex items-center justify-between gap-4">
-        <div>
-          <h4 className="text-sm font-black uppercase tracking-tight text-slate-900 flex items-center gap-2">
-            <Compass className="w-4 h-4 text-[#84cc16]" />
-            Professional Google Map Explorer
-          </h4>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Real-time Property Pins & Route Directions</p>
-        </div>
-        <button
-          onClick={() => setIsFullScreen(true)}
-          className="px-4 py-2 bg-[#84cc16] hover:bg-[#65a30d] text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-sm flex items-center gap-2 transition-all cursor-pointer active:scale-95 shrink-0"
-        >
-          <Maximize2 className="w-3.5 h-3.5" />
-          Full Screen
-        </button>
-      </div>
-
-      {/* Main Canvas */}
-      <div className="flex-1 w-full h-full min-h-[500px] relative overflow-hidden">
-        {renderMapCanvas(false)}
-      </div>
-
-      {/* 🚀 FULL-SCREEN INTERACTIVE MAP MODAL */}
+      {/* 🚀 FULL-SCREEN MODAL */}
       <AnimatePresence>
         {isFullScreen && (
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
             className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl p-4 sm:p-8 flex flex-col"
           >
-            {/* Modal Header Bar */}
             <div className="bg-slate-900 px-6 py-4 rounded-t-3xl border-b border-slate-800 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-[#84cc16] flex items-center justify-center text-slate-950 font-black shadow-md">
                   <Navigation className="w-5 h-5 transform -rotate-45" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white uppercase tracking-wide">Full-Screen Google Maps Engine</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Live Commute Estimator & Direct Home Listings</p>
+                  <h3 className="text-base font-black text-white uppercase tracking-wide">Real-Time OpenStreetMap Engine</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Chennai Live Satellite & Street Navigation</p>
                 </div>
               </div>
 
               <button
                 onClick={() => setIsFullScreen(false)}
                 className="w-10 h-10 bg-slate-800 hover:bg-red-500 text-white rounded-2xl flex items-center justify-center transition-all border border-slate-700 cursor-pointer"
-                title="Close Fullscreen"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Map Canvas */}
             <div className="flex-1 bg-slate-900 rounded-b-3xl overflow-hidden relative border border-slate-800">
-              {renderMapCanvas(true)}
+              <div ref={mapContainerRef} className="w-full h-full min-h-[600px]" />
             </div>
           </motion.div>
         )}
