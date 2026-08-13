@@ -130,6 +130,71 @@ const realChennaiProperties: MapProperty[] = [
     emoji: '🌿',
     safetyScore: 93
   },
+  // NEW NEARBY HOUSES & LOCATIONS
+  {
+    id: 'prop-7',
+    title: 'Velachery Tech Residency 🏢',
+    city: 'Velachery',
+    price: 28000,
+    type: '2 BHK',
+    address: '100 Feet Bypass Road, Velachery',
+    image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=800',
+    rating: 4.7,
+    bedrooms: 2,
+    area: 1050,
+    lat: 12.9815,
+    lng: 80.2180,
+    emoji: '🏢',
+    safetyScore: 95
+  },
+  {
+    id: 'prop-8',
+    title: 'Thiruvanmiyur Sea Breeze ⛵',
+    city: 'Adyar',
+    price: 38000,
+    type: '2 BHK',
+    address: 'East Coast Road, Thiruvanmiyur Beach',
+    image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=800',
+    rating: 4.9,
+    bedrooms: 2,
+    area: 1150,
+    lat: 12.9830,
+    lng: 80.2594,
+    emoji: '⛵',
+    safetyScore: 97
+  },
+  {
+    id: 'prop-9',
+    title: 'Anna Nagar Emerald Mansion 🏰',
+    city: 'Nungambakkam',
+    price: 52000,
+    type: '3 BHK',
+    address: '2nd Avenue, Anna Nagar',
+    image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=800',
+    rating: 5.0,
+    bedrooms: 3,
+    area: 1600,
+    lat: 13.0850,
+    lng: 80.2100,
+    emoji: '🏰',
+    safetyScore: 99
+  },
+  {
+    id: 'prop-10',
+    title: 'Alwarpet Royal Suite 💎',
+    city: 'Mylapore',
+    price: 42000,
+    type: '2 BHK',
+    address: 'TTK Road, Alwarpet',
+    image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&q=80&w=800',
+    rating: 4.8,
+    bedrooms: 2,
+    area: 1200,
+    lat: 13.0330,
+    lng: 80.2500,
+    emoji: '💎',
+    safetyScore: 96
+  }
 ];
 
 const zoneCoords: Record<string, [number, number]> = {
@@ -137,6 +202,7 @@ const zoneCoords: Record<string, [number, number]> = {
   'Mylapore': [13.0339, 80.2696],
   'Nungambakkam': [13.0604, 80.2496],
   'OMR': [12.9698, 80.2457],
+  'Velachery': [12.9815, 80.2180],
   'All': [13.0300, 80.2500]
 };
 
@@ -152,7 +218,6 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<Record<string, any>>({});
-  const polylineRef = useRef<any>(null);
 
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [mapStyle, setMapStyle] = useState<'streets' | 'satellite' | 'dark'>('streets');
@@ -175,13 +240,22 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
     document.body.appendChild(script);
   }, []);
 
+  // Event delegate for 100% reliable marker pill button clicks
+  const handleMarkerClick = (prop: MapProperty) => {
+    setSelectedProp(prop);
+    onZoneSelect(prop.city);
+    if (onPropertySelect) onPropertySelect(prop.id);
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.flyTo([prop.lat, prop.lng], 15, { duration: 1.0 });
+    }
+  };
+
   // Initialize & update Leaflet Real-time Map
   useEffect(() => {
     if (!isLeafletLoaded || !mapContainerRef.current || !(window as any).L) return;
     const L = (window as any).L;
 
     if (!mapInstanceRef.current) {
-      // Create Leaflet Map Instance
       const center: [number, number] = zoneCoords[selectedZone] || [13.0300, 80.2500];
       const map = L.map(mapContainerRef.current, {
         center,
@@ -189,7 +263,6 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
         zoomControl: false
       });
 
-      // Default OpenStreetMap Tile Layer
       const streetTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
         maxZoom: 19
@@ -197,34 +270,49 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
       streetTile.addTo(map);
       mapInstanceRef.current = map;
 
-      // Add Custom Green House Markers
+      // Add Custom Green House Markers with explicit data-prop-id
       realChennaiProperties.forEach(prop => {
         const customIcon = L.divIcon({
-          className: 'custom-leaflet-marker',
+          className: 'custom-leaflet-marker-wrapper',
           html: `
-            <div class="group cursor-pointer transform hover:scale-110 transition-transform">
-              <div class="bg-[#84cc16] text-slate-950 px-2.5 py-1 rounded-full text-[10px] font-black uppercase shadow-lg border-2 border-white flex items-center gap-1 whitespace-nowrap">
+            <div data-prop-id="${prop.id}" class="prop-marker-btn group cursor-pointer transform hover:scale-110 active:scale-95 transition-all select-none">
+              <div class="bg-[#84cc16] hover:bg-[#65a30d] text-slate-950 px-3 py-1.5 rounded-full text-[11px] font-black uppercase shadow-2xl border-2 border-white flex items-center gap-1.5 whitespace-nowrap">
                 <span>${prop.emoji}</span>
-                <span>${prop.title.split(' ')[0]}</span>
-                <span class="bg-slate-950 text-white px-1.5 py-0.2 rounded-md text-[8px]">₹${(prop.price/1000).toFixed(0)}k</span>
+                <span class="font-extrabold tracking-tight">${prop.title}</span>
+                <span class="bg-slate-950 text-white px-2 py-0.5 rounded-md text-[9px] font-black">₹${(prop.price/1000).toFixed(0)}k</span>
               </div>
             </div>
           `,
-          iconSize: [120, 30],
-          iconAnchor: [60, 15]
+          iconSize: [160, 36],
+          iconAnchor: [80, 18]
         });
 
         const marker = L.marker([prop.lat, prop.lng], { icon: customIcon }).addTo(map);
-        marker.on('click', () => {
-          setSelectedProp(prop);
-          onZoneSelect(prop.city);
-          if (onPropertySelect) onPropertySelect(prop.id);
+        marker.on('click', (e: any) => {
+          if (e.originalEvent) e.originalEvent.stopPropagation();
+          handleMarkerClick(prop);
         });
 
         markersRef.current[prop.id] = marker;
       });
+
+      // Delegate click listener on map container for child DOM clicks
+      const container = mapContainerRef.current;
+      const listener = (e: MouseEvent) => {
+        const target = (e.target as HTMLElement).closest('[data-prop-id]');
+        if (target) {
+          const propId = target.getAttribute('data-prop-id');
+          const matched = realChennaiProperties.find(p => p.id === propId);
+          if (matched) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleMarkerClick(matched);
+          }
+        }
+      };
+      container.addEventListener('click', listener);
+
     } else {
-      // Map already initialized - resize cleanly
       setTimeout(() => {
         mapInstanceRef.current.invalidateSize();
       }, 200);
@@ -237,7 +325,6 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
     const L = (window as any).L;
     const map = mapInstanceRef.current;
 
-    // Remove existing tile layers
     map.eachLayer((layer: any) => {
       if (layer instanceof L.TileLayer) {
         map.removeLayer(layer);
@@ -262,7 +349,7 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
     if (highlightedPropertyId) {
       const targetProp = realChennaiProperties.find(p => p.id === highlightedPropertyId);
       if (targetProp) {
-        map.flyTo([targetProp.lat, targetProp.lng], 15, { duration: 1.2 });
+        map.flyTo([targetProp.lat, targetProp.lng], 15, { duration: 1.0 });
         setSelectedProp(targetProp);
         return;
       }
@@ -270,14 +357,14 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
 
     const coords = zoneCoords[selectedZone];
     if (coords) {
-      map.flyTo(coords, 13, { duration: 1.2 });
+      map.flyTo(coords, 13, { duration: 1.0 });
     }
   }, [selectedZone, highlightedPropertyId]);
 
   return (
     <div className="w-full h-full min-h-[550px] flex flex-col text-left relative overflow-hidden bg-slate-900 rounded-[2.5rem]" id="realtime-leaflet-map-wrapper">
       
-      {/* 🧭 Top Floating Real-time Controls Header */}
+      {/* 🧭 Top Floating Quick Search & Filter Header */}
       <div className="p-3 bg-slate-900/95 backdrop-blur-md text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 z-20">
         <div className="flex items-center gap-3 flex-1 min-w-[200px]">
           <div className="w-8 h-8 rounded-lg bg-[#84cc16] flex items-center justify-center text-slate-950 font-black shadow-md shrink-0">
@@ -287,7 +374,7 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search Chennai street or ward..."
+              placeholder="Search Dream, Smart, Beach, Villa..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -331,12 +418,31 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
         </div>
       </div>
 
-      {/* 🗺️ REAL-TIME LEAFLET / OPENSTREETMAP CANVAS */}
+      {/* 🏡 Quick Marker Selector Chips */}
+      <div className="px-4 py-2 bg-slate-950/80 border-b border-slate-800 flex items-center gap-2 overflow-x-auto scrollbar-none z-20">
+        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest shrink-0">Click Button:</span>
+        {realChennaiProperties.map((prop) => (
+          <button
+            key={`chip-${prop.id}`}
+            onClick={() => handleMarkerClick(prop)}
+            className={`px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition-all border cursor-pointer flex items-center gap-1 shrink-0 ${
+              selectedProp?.id === prop.id 
+                ? 'bg-[#84cc16] text-slate-950 border-[#84cc16] font-black shadow-md scale-105' 
+                : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-500 hover:text-white'
+            }`}
+          >
+            <span>{prop.emoji}</span>
+            <span>{prop.title}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* 🗺️ REAL-TIME LEAFLET MAP CANVAS */}
       <div className="flex-1 w-full h-full min-h-[500px] relative z-10">
         <div ref={mapContainerRef} className="w-full h-full min-h-[500px]" />
       </div>
 
-      {/* 🏡 Bottom Property Card Overlay */}
+      {/* 🏡 Bottom Property Details Card Overlay */}
       {selectedProp && (
         <div className="absolute inset-x-3 bottom-3 z-30 pointer-events-auto">
           <motion.div 
@@ -348,18 +454,18 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
               <img src={selectedProp.image} alt="" className="w-16 h-16 rounded-2xl object-cover border border-white/10 shrink-0 shadow-md" />
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 bg-[#84cc16] text-slate-950 font-black rounded-md text-[9px] uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 bg-[#84cc16] text-slate-950 font-black rounded-md text-[10px] uppercase tracking-wider">
                     {selectedProp.title}
                   </span>
                   <span className="text-[10px] text-amber-400 font-extrabold flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-amber-400" /> {selectedProp.rating}
+                    <Star className="w-3.5 h-3.5 fill-amber-400" /> {selectedProp.rating}
                   </span>
                 </div>
                 <h4 className="text-sm font-black text-white truncate">
                   ₹{selectedProp.price.toLocaleString()}/mo • {selectedProp.bedrooms} BHK ({selectedProp.area} sqft)
                 </h4>
                 <p className="text-[10px] text-slate-400 font-medium truncate flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-[#84cc16]" /> {selectedProp.address}
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#84cc16]" /> {selectedProp.address}
                 </p>
               </div>
             </div>
@@ -371,7 +477,7 @@ const NeighborhoodMap: React.FC<NeighborhoodProps> = ({
                   if (onPropertySelect) onPropertySelect(selectedProp.id);
                   if (isFullScreen) setIsFullScreen(false);
                 }}
-                className="flex-1 sm:flex-none px-5 py-3 bg-[#84cc16] hover:bg-[#65a30d] text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                className="flex-1 sm:flex-none px-6 py-3.5 bg-[#84cc16] hover:bg-[#65a30d] text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
                 <Home className="w-4 h-4" />
                 Schedule Tour
