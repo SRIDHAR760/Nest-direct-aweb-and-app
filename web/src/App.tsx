@@ -367,6 +367,15 @@ export default function App() {
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'properties');
+      // Fallback: fetch from Express backend /api/properties REST API database
+      fetch('/api/properties')
+        .then(res => res.json())
+        .then(data => {
+          if (data?.data && Array.isArray(data.data) && data.data.length > 0) {
+            setProperties(data.data);
+          }
+        })
+        .catch(() => {});
     });
     return () => unsubscribe();
   }, []);
