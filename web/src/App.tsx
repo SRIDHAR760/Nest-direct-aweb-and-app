@@ -1665,36 +1665,101 @@ export default function App() {
                   />
                 </div>
 
-                {/* 💰 Direct Savings Pulse */}
-                <div className="bg-[#12141C] rounded-[2rem] p-6 text-white space-y-6 relative overflow-hidden shadow-lg border border-white/5">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-terracotta/10 rounded-full blur-3xl -mr-16 -mt-16" />
-                  <div className="absolute bottom-0 left-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -ml-16 -mb-16" />
-                  
-                  <div className="relative z-10 space-y-5 text-left">
+                {/* 📍 Interactive Live Commute Radar & Work Hub Estimator */}
+                <div className="bg-[#12141C] rounded-[2rem] p-6 text-white space-y-5 relative overflow-hidden shadow-2xl border border-white/10 text-left">
+                  {/* Ambient background blur */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+
+                  {/* Header */}
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center border border-white/10 backdrop-blur-md">
-                        <DollarSign className="w-5 h-5 text-terracotta" />
+                      <div className="w-10 h-10 bg-amber-400/10 rounded-xl flex items-center justify-center text-amber-400 border border-amber-400/30">
+                        <Compass className="w-5 h-5" />
                       </div>
-                      <h4 className="text-xs font-black uppercase tracking-tight">Direct Gains</h4>
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-tight text-white flex items-center gap-2">
+                          Commute Radar
+                          <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                        </h4>
+                        <p className="text-[9px] text-white/40 font-extrabold uppercase tracking-widest">Chennai Work Hub Proximity</p>
+                      </div>
                     </div>
+                    <span className="text-[9px] font-black text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-lg border border-amber-400/20 uppercase tracking-wider">Live Route</span>
+                  </div>
 
-                    <div className="space-y-1">
-                      <p className="text-3xl font-bold font-mono tracking-tight text-white">₹{totalSavingsCommissions.toLocaleString()}</p>
-                      <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-none">Brokerage Savings Accumulated</p>
+                  {/* Work Hub Selector Pills */}
+                  <div className="space-y-2">
+                    <span className="text-[9px] font-extrabold text-white/50 uppercase tracking-widest block">Select Your Workplace</span>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {workplacesData.map((wp) => {
+                        const isSelected = selectedWorkplace.id === wp.id;
+                        return (
+                          <button
+                            key={wp.id}
+                            onClick={() => setSelectedWorkplace(wp)}
+                            className={`p-2 rounded-xl text-[9px] font-bold tracking-tight text-left transition-all flex items-center gap-1.5 cursor-pointer border ${
+                              isSelected
+                                ? 'bg-amber-400 text-slate-950 border-amber-400 font-extrabold shadow-md'
+                                : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            <Building className={`w-3 h-3 flex-shrink-0 ${isSelected ? 'text-slate-950' : 'text-amber-400'}`} />
+                            <span className="truncate">{wp.name.split(' ')[0]} {wp.name.split(' ')[1] || ''}</span>
+                          </button>
+                        );
+                      })}
                     </div>
+                  </div>
 
-                    <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: '75%' }}
-                        transition={{ duration: 1, ease: 'easeOut' }}
-                        className="h-full bg-gradient-to-r from-amber-400 via-terracotta to-terracotta-dark" 
-                      />
-                    </div>
+                  {/* Commute Time Cards for Current Selected City */}
+                  {(() => {
+                    const currentCityKey = selectedCity === 'All' ? 'Adyar' : selectedCity;
+                    const times = selectedWorkplace.commuteTimes[currentCityKey] || { metro: 15, auto: 18, bike: 10 };
+                    return (
+                      <div className="space-y-2 bg-white/5 p-3 rounded-2xl border border-white/10">
+                        <div className="flex items-center justify-between text-[9px] font-extrabold text-white/60 uppercase tracking-widest">
+                          <span>From <strong className="text-amber-400">{currentCityKey}</strong> to <strong className="text-white">{selectedWorkplace.name.split(' ')[0]}</strong></span>
+                          <span className="text-emerald-400 font-bold">Grade A+</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                          <div className="p-2 bg-slate-900/80 rounded-xl border border-white/5">
+                            <Bike className="w-3.5 h-3.5 text-amber-400 mx-auto mb-1" />
+                            <span className="text-xs font-black text-white font-mono block">{times.bike}m</span>
+                            <span className="text-[8px] text-white/40 font-bold uppercase">Bike</span>
+                          </div>
+                          <div className="p-2 bg-slate-900/80 rounded-xl border border-white/5">
+                            <Bus className="w-3.5 h-3.5 text-emerald-400 mx-auto mb-1" />
+                            <span className="text-xs font-black text-white font-mono block">{times.metro}m</span>
+                            <span className="text-[8px] text-white/40 font-bold uppercase">Metro</span>
+                          </div>
+                          <div className="p-2 bg-slate-900/80 rounded-xl border border-white/5">
+                            <Car className="w-3.5 h-3.5 text-sky-400 mx-auto mb-1" />
+                            <span className="text-xs font-black text-white font-mono block">{times.auto}m</span>
+                            <span className="text-[8px] text-white/40 font-bold uppercase">Cab/Auto</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
-                    <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic block text-left">
-                      "Save up to ₹{Math.max(...filteredProperties.map(p => p.brokerSavings)).toLocaleString()} in a single direct transaction today."
-                    </p>
+                  {/* Commute Quick Action Filter */}
+                  <button
+                    onClick={() => {
+                      setSelectedCity(selectedWorkplace.zone);
+                      setSelectedMapNeighborhood(selectedWorkplace.zone);
+                      showToast(`Filtered listings near ${selectedWorkplace.name}`);
+                    }}
+                    className="w-full py-2.5 px-4 bg-white/10 hover:bg-white/20 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/15 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Compass className="w-3.5 h-3.5 text-amber-400" />
+                    Show Homes Near {selectedWorkplace.name.split(' ')[0]}
+                  </button>
+
+                  <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[9px] font-extrabold text-white/40 uppercase tracking-wider">
+                    <span>99.2% Transit Coverage</span>
+                    <span className="text-emerald-400 flex items-center gap-1">
+                      <Zap className="w-3 h-3" /> Live Route Sync
+                    </span>
                   </div>
                 </div>
 
