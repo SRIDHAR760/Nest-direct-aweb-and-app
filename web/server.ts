@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
@@ -662,19 +663,22 @@ Keep your answers beautifully structured, scannable, professional, and Chennai-s
     }
   });
 
-  // Configure Vite Development / Production asset middlewares
-  if (process.env.NODE_ENV !== "production") {
+  // Configure Production static bundle or Vite Development asset middlewares
+  const distPath = path.join(process.cwd(), 'dist');
+  if (fs.existsSync(distPath) && process.env.VITE_DEV !== "true") {
+    console.log("[Server] Serving compiled production bundle from dist/");
+    app.use(express.static(distPath));
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api/')) return next();
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else {
+    console.log("[Server] Mounting Vite Development Server middleware");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
