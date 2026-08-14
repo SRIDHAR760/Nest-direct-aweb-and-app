@@ -1,21 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    NestDirect Network Security Configuration
-    ==========================================
-    Production (release): HTTPS only to nest-direct-webapp.vercel.app
-    Debug:                HTTP allowed ONLY to 127.0.0.1 (ADB reverse tunnel to localhost:3000)
-
-    The debug override is in app/src/debug/AndroidManifest.xml which adds
-    android:networkSecurityConfig="@xml/network_security_config_debug"
-    so this base config is only active for release builds.
--->
 <network-security-config>
-    <!-- Default: require encrypted connections for all domains -->
-    <base-config cleartextTrafficPermitted="false">
+    <!-- Default: allow cleartext traffic for local development & ADB reverse -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+
+    <!-- Localhost & ADB Reverse Cleartext Allowed -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+    </domain-config>
 
     <!-- Production domain: always HTTPS -->
     <domain-config cleartextTrafficPermitted="false">
