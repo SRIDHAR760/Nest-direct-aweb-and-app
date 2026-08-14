@@ -116,31 +116,63 @@ export async function signUpWithEmail(email: string, pass: string, name: string)
 }
 
 // --- Save User Profile into Firestore ---
+// Writes to TWO collections:
+//   1. users/{uid}            → Full profile (auth, favorites, KYC, onboarding)
+//   2. registered_users/{uid} → Signup registry (name, email, provider, joined date)
 export async function saveUserProfile(user: User): Promise<void> {
   const userRef = doc(db, 'users', user.uid);
+  const registryRef = doc(db, 'registered_users', user.uid);
+
   try {
     const userSnap = await getDoc(userRef);
     const generatedAvatar = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(user.uid)}`;
     const displayName = user.displayName || (user.isAnonymous ? `Chennai Guest #${user.uid.substring(0, 4)}` : 'Chennai Tenant');
     const photoURL = user.photoURL || generatedAvatar;
 
-    // Load current local states to ensure profile document starts fully populated
+    // Detect sign-in provider for registry
+    const provider = user.isAnonymous
+      ? 'Guest'
+      : user.providerData?.[0]?.providerId === 'google.com'
+        ? 'Google'
+        : user.providerData?.[0]?.providerId === 'password'
+          ? 'Email'
+          : 'Unknown';
+
+    // Load current local states
     const onboardingCompleted = localStorage.getItem('nestdirect_onboarding_v4_done') === 'true';
     const isKycVerified = localStorage.getItem('nestdirect_kyc_verified_v4') === 'true';
+    const joinedAt = new Date().toISOString();
 
     if (!userSnap.exists()) {
+      // ── Collection 1: Full user profile ───────────────────────────────────
       await setDoc(userRef, {
         uid: user.uid,
         displayName: displayName,
         email: user.email || (user.isAnonymous ? 'guest@nestdirect.in' : ''),
         photoURL: photoURL,
-        favorites: ['prop-1', 'prop-5'], // Default starters
+        provider: provider,
+        favorites: ['prop-1', 'prop-5'],
         onboardingCompleted: onboardingCompleted,
         isKycVerified: isKycVerified,
-        createdAt: new Date().toISOString()
+        createdAt: joinedAt
       }, { merge: true });
+
+      // ── Collection 2: Signup registry (username list) ─────────────────────
+      await setDoc(registryRef, {
+        uid: user.uid,
+        name: displayName,
+        email: user.email || (user.isAnonymous ? 'guest@nestdirect.in' : ''),
+        photoURL: photoURL,
+        provider: provider,
+        joinedAt: joinedAt,
+        isGuest: user.isAnonymous || false,
+        deviceType: /Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Web',
+        city: 'Chennai',
+      }, { merge: true });
+
+      console.log(`[NestDirect] ✅ New user registered: ${displayName} (${provider}) → saved to users + registered_users`);
     } else {
-      // Keep displayName and photoURL synced if they are set on the Auth profile but empty in DB
+      // Keep displayName and photoURL synced
       const existingData = userSnap.data();
       if (!existingData.displayName || !existingData.photoURL) {
         await setDoc(userRef, {
@@ -148,6 +180,12 @@ export async function saveUserProfile(user: User): Promise<void> {
           photoURL: existingData.photoURL || photoURL
         }, { merge: true });
       }
+      // Always update last seen in registry
+      await setDoc(registryRef, {
+        lastSeenAt: joinedAt,
+        name: displayName,
+        provider: provider,
+      }, { merge: true });
     }
   } catch (error) {
     console.error("Error setting up user profile document:", error);

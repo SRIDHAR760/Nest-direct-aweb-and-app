@@ -89,6 +89,40 @@ service cloud.firestore {
         && (existing().ownerEmail == request.auth.token.email || existing().ownerName == request.auth.token.name);
     }
 
+    // =========================================================================
+    // 📋 REGISTERED USERS COLLECTION — Signup Registry
+    // =========================================================================
+    match /registered_users/{userId} {
+      // Any signed-in user can read their OWN registry entry
+      allow get: if isOwner(userId);
+
+      // Only the signed-in user can create/update their own registry entry
+      allow create: if isOwner(userId) && isValidRegistryEntry(incoming());
+      allow update: if isOwner(userId) && isValidRegistryEntry(incoming());
+
+      // No one can delete registry entries (permanent signup record)
+      allow delete: if false;
+
+      // Admin read-all: only users whose email matches the owner email can list all
+      allow list: if isSignedIn()
+        && (request.auth.token.email == 'boycrazyboy230@gmail.com'
+            || request.auth.token.email == 'owner@nestdirect.com');
+    }
+
+    // Validation Blueprint for Signup Registry Entry
+    function isValidRegistryEntry(data) {
+      return data.keys().hasAll(['uid', 'name', 'joinedAt'])
+        && data.uid is string && data.uid.size() <= 128
+        && data.name is string && data.name.size() <= 100
+        && data.joinedAt is string && data.joinedAt.size() <= 100
+        && (data.email == null || (data.email is string && data.email.size() <= 100))
+        && (data.provider == null || (data.provider is string && data.provider.size() <= 50))
+        && (data.deviceType == null || (data.deviceType is string && data.deviceType.size() <= 20))
+        && (data.city == null || (data.city is string && data.city.size() <= 100))
+        && (data.isGuest == null || data.isGuest is bool);
+    }
+
+
     // Validation Blueprint for Properties
     function isValidProperty(data) {
       return data.keys().hasAll(['id', 'title', 'description', 'price', 'type', 'address', 'city', 'ownerName', 'createdAt'])
