@@ -115,7 +115,7 @@ describe('NestDirect Web API & Selenium E2E Automation Suite', function () {
     assert.strictEqual(status, 200);
     assert.strictEqual(json.status, 'synced');
     assert.strictEqual(json.session.uid, 'test-user-ci-001');
-    assert.strictEqual(json.session.email, 'ci@nestdirect.com');
+    assert.strictEqual(json.session.displayName, 'CI Test User');
     excelReporter.addLog('TC_SEL_003', 'POST /api/sync-session', 'PASS', `Session synced for uid: ${json.session.uid}`);
     logger.info(`TC_SEL_003 PASS — session synced for: ${json.session.displayName}`);
   });
