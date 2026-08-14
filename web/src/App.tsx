@@ -1692,11 +1692,12 @@ export default function App() {
                     <span className="text-[9px] font-extrabold text-white/50 uppercase tracking-widest block">Select Your Workplace</span>
                     <div className="grid grid-cols-2 gap-1.5">
                       {workplacesData.map((wp) => {
-                        const isSelected = selectedWorkplace.id === wp.id;
+                        const activeWpId = typeof selectedWorkplace === 'string' ? selectedWorkplace : (selectedWorkplace as any)?.id;
+                        const isSelected = activeWpId === wp.id;
                         return (
                           <button
                             key={wp.id}
-                            onClick={() => setSelectedWorkplace(wp)}
+                            onClick={() => setSelectedWorkplace(wp.id as any)}
                             className={`p-2 rounded-xl text-[9px] font-bold tracking-tight text-left transition-all flex items-center gap-1.5 cursor-pointer border ${
                               isSelected
                                 ? 'bg-amber-400 text-slate-950 border-amber-400 font-extrabold shadow-md'
@@ -1713,12 +1714,16 @@ export default function App() {
 
                   {/* Commute Time Cards for Current Selected City */}
                   {(() => {
-                    const currentCityKey = selectedCity === 'All' ? 'Adyar' : selectedCity;
-                    const times = selectedWorkplace.commuteTimes[currentCityKey] || { metro: 15, auto: 18, bike: 10 };
+                    const activeWpId = typeof selectedWorkplace === 'string' ? selectedWorkplace : (selectedWorkplace as any)?.id;
+                    const wpObj = workplacesData.find(w => w.id === activeWpId) || workplacesData[0];
+                    const currentCityKey = (selectedCity && selectedCity !== 'All') ? selectedCity : 'Adyar';
+                    const times = (wpObj.commuteTimes && wpObj.commuteTimes[currentCityKey]) || { metro: 15, auto: 18, bike: 10 };
+                    const shortWpName = wpObj.name.split(' ')[0];
+
                     return (
                       <div className="space-y-2 bg-white/5 p-3 rounded-2xl border border-white/10">
                         <div className="flex items-center justify-between text-[9px] font-extrabold text-white/60 uppercase tracking-widest">
-                          <span>From <strong className="text-amber-400">{currentCityKey}</strong> to <strong className="text-white">{selectedWorkplace.name.split(' ')[0]}</strong></span>
+                          <span>From <strong className="text-amber-400">{currentCityKey}</strong> to <strong className="text-white">{shortWpName}</strong></span>
                           <span className="text-emerald-400 font-bold">Grade A+</span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-center pt-1">
@@ -1743,17 +1748,23 @@ export default function App() {
                   })()}
 
                   {/* Commute Quick Action Filter */}
-                  <button
-                    onClick={() => {
-                      setSelectedCity(selectedWorkplace.zone);
-                      setSelectedMapNeighborhood(selectedWorkplace.zone);
-                      showToast(`Filtered listings near ${selectedWorkplace.name}`);
-                    }}
-                    className="w-full py-2.5 px-4 bg-white/10 hover:bg-white/20 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/15 flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <Compass className="w-3.5 h-3.5 text-amber-400" />
-                    Show Homes Near {selectedWorkplace.name.split(' ')[0]}
-                  </button>
+                  {(() => {
+                    const activeWpId = typeof selectedWorkplace === 'string' ? selectedWorkplace : (selectedWorkplace as any)?.id;
+                    const wpObj = workplacesData.find(w => w.id === activeWpId) || workplacesData[0];
+                    return (
+                      <button
+                        onClick={() => {
+                          setSelectedCity(wpObj.zone);
+                          setSelectedMapNeighborhood(wpObj.zone);
+                          showToast(`Filtered listings near ${wpObj.name}`);
+                        }}
+                        className="w-full py-2.5 px-4 bg-white/10 hover:bg-white/20 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/15 flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <Compass className="w-3.5 h-3.5 text-amber-400" />
+                        Show Homes Near {wpObj.name.split(' ')[0]}
+                      </button>
+                    );
+                  })()}
 
                   <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[9px] font-extrabold text-white/40 uppercase tracking-wider">
                     <span>99.2% Transit Coverage</span>
