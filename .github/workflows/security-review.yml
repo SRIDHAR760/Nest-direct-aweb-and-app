@@ -1,0 +1,218 @@
+name: "🔒 NestDirect Comprehensive Security Review"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ════════════════════════════════════════════════════════════════
+  # JOB 1 — SAST: Static Application Security Testing
+  # ════════════════════════════════════════════════════════════════
+  sast-scan:
+    name: "🔍 SAST — Static Code Analysis"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm install
+
+      - name: Run TypeScript type checking (lint)
+        working-directory: web
+        run: npx tsc --noEmit
+        continue-on-error: true
+
+      - name: Install semgrep
+        run: pip install semgrep
+
+      - name: Run Semgrep SAST Scan (OWASP Top 10)
+        run: |
+          semgrep scan \
+            --config "p/nodejs" \
+            --config "p/javascript" \
+            --config "p/typescript" \
+            --config "p/owasp-top-ten" \
+            --config "p/secrets" \
+            --config "p/sql-injection" \
+            --config "p/xss" \
+            --json \
+            --output semgrep-results.json \
+            --error \
+            web/server.ts web/ci-server.cjs web/src/ \
+          || true
+
+      - name: Generate SAST report
+        run: |
+          node scripts/security/generate-sast-report.js
+
+      - name: Upload SAST results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sast-results
+          path: |
+            semgrep-results.json
+            "Vulnerability Test Results/"
+
+  # ════════════════════════════════════════════════════════════════
+  # JOB 2 — Dependency Vulnerability Scanning
+  # ════════════════════════════════════════════════════════════════
+  dependency-scan:
+    name: "📦 Dependency Vulnerability Scan"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm install
+
+      - name: Run npm audit (fail on HIGH+)
+        working-directory: web
+        run: |
+          npm audit --json > npm-audit-report.json || true
+          node ../scripts/security/parse-npm-audit.js
+
+      - name: Check for secrets with Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        continue-on-error: true
+
+      - name: Upload dependency scan results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-scan-results
+          path: |
+            web/npm-audit-report.json
+            "Vulnerability Test Results/"
+
+  # ════════════════════════════════════════════════════════════════
+  # JOB 3 — DAST: Dynamic API Security Testing
+  # ════════════════════════════════════════════════════════════════
+  dast-api-test:
+    name: "🌐 DAST — Live API Security Tests"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm install
+
+      - name: Install test dependencies
+        working-directory: tests
+        run: npm install
+
+      - name: Start CI Server
+        working-directory: web
+        run: |
+          nohup node ci-server.cjs > /tmp/ci-server-security.log 2>&1 &
+          for i in {1..25}; do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "✅ CI Server is UP after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          if ! curl -sf http://localhost:3000/api/health; then
+            echo "❌ Server failed to start. Logs:"
+            cat /tmp/ci-server-security.log
+            exit 1
+          fi
+
+      - name: Run DAST Security Tests
+        run: |
+          node scripts/security/dast-api-tests.js
+        env:
+          BASE_URL: http://localhost:3000
+
+      - name: Show server logs on failure
+        if: failure()
+        run: cat /tmp/ci-server-security.log || true
+
+      - name: Upload DAST results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dast-results
+          path: "Vulnerability Test Results/"
+
+  # ════════════════════════════════════════════════════════════════
+  # JOB 4 — Security Report Generation & Summary
+  # ════════════════════════════════════════════════════════════════
+  security-report:
+    name: "📋 Security Report Generation"
+    runs-on: ubuntu-latest
+    needs: [sast-scan, dependency-scan, dast-api-test]
+    if: always()
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm install
+
+      - name: Download all scan artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: scan-artifacts/
+
+      - name: Generate comprehensive security reports
+        run: |
+          node scripts/security/generate-security-report.js
+        env:
+          ARTIFACTS_PATH: scan-artifacts/
+
+      - name: Publish GitHub Actions Summary
+        run: |
+          cat "Vulnerability Test Results/github-summary.md" >> $GITHUB_STEP_SUMMARY || true
+
+      - name: Upload final security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: NestDirect-Security-Review-Reports
+          path: "Vulnerability Test Results/"
+          retention-days: 30
+
+      - name: Fail workflow if CRITICAL findings detected
+        run: |
+          node scripts/security/check-critical-findings.js
