@@ -43,13 +43,25 @@ class MainActivity : Activity() {
     private var pendingGeoCallback: GeolocationPermissions.Callback? = null
     private var pendingGeoOrigin: String? = null
 
+    private val fallbackUrls = listOf(
+        "http://127.0.0.1:3000/",
+        "http://192.168.137.1:3000/",
+        "http://10.88.164.109:3000/",
+        "https://nest-direct-webapp.vercel.app/"
+    )
+    private var currentUrlIndex = 0
+
     private val appUrl: String by lazy { 
-        // Build-type specific URL configured in app/build.gradle.kts
-        // DEBUG: http://127.0.0.1:3000/
-        // RELEASE: https://nest-direct-webapp.vercel.app/
         BuildConfig.WEB_BASE_URL
     }
-    private val trustedHosts = setOf("nest-direct-webapp.vercel.app", "127.0.0.1", "localhost")
+    private val trustedHosts = setOf(
+        "nest-direct-webapp.vercel.app", 
+        "127.0.0.1", 
+        "localhost",
+        "10.0.2.2",
+        "192.168.137.1",
+        "10.88.164.109"
+    )
     private val runtimePermissionRequestCode = 7001
     private val fileChooserRequestCode = 7002
 
@@ -167,7 +179,14 @@ class MainActivity : Activity() {
                 error: WebResourceError
             ) {
                 if (request.isForMainFrame) {
-                    showOfflineState()
+                    if (BuildConfig.DEBUG && currentUrlIndex < fallbackUrls.size - 1) {
+                        currentUrlIndex++
+                        val nextUrl = fallbackUrls[currentUrlIndex]
+                        Toast.makeText(this@MainActivity, "Connecting to NestDirect endpoint...", Toast.LENGTH_SHORT).show()
+                        view.loadUrl(nextUrl)
+                    } else {
+                        showOfflineState()
+                    }
                 }
             }
 
@@ -335,6 +354,7 @@ class MainActivity : Activity() {
     }
 
     private fun isOnline(): Boolean {
+        if (BuildConfig.DEBUG) return true
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = cm.activeNetwork ?: return false
         val capabilities = cm.getNetworkCapabilities(network) ?: return false
