@@ -1843,13 +1843,6 @@ export default function App() {
                       <ClipboardList className="w-4 h-4" />
                       Draft Zero-Brokerage Agreement
                     </button>
-                    <button
-                      onClick={() => setIsGuruOpen(true)}
-                      className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all border border-slate-700 flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <Sparkles className="w-4 h-4 text-amber-400" />
-                      Ask AI Rental Advisor
-                    </button>
                   </div>
 
                   {/* Trust Footer Badges */}
