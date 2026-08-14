@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Property, DirectInquiry, PropertyType } from '../types';
+import { savePropertyToFirestore } from '../firebase';
 import { 
   PlusCircle, LayoutDashboard, FileText, Check, X, 
   MapPin, CheckCircle, Home, Hammer, Calendar, 
@@ -209,6 +210,7 @@ export default function OwnerPortal({
     };
 
     onAddProperty(newProp);
+    savePropertyToFirestore(newProp);
     setFormSuccess(true);
     setTitle('');
     setDescription('');

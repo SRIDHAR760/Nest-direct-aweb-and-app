@@ -201,6 +201,41 @@ export async function saveUserProfile(user: User): Promise<void> {
   }
 }
 
+// --- Save Property Listing to Firestore ---
+export async function savePropertyToFirestore(property: any): Promise<void> {
+  try {
+    const propId = property.id || `prop-${Date.now()}`;
+    const propRef = doc(db, 'properties', propId);
+    await setDoc(propRef, {
+      id: propId,
+      title: property.title || 'Direct Rental Property',
+      description: property.description || '',
+      price: Number(property.price) || 0,
+      securityDeposit: property.securityDeposit ? Number(property.securityDeposit) : undefined,
+      type: property.type || 'apartment',
+      address: property.address || '',
+      city: property.city || 'Chennai',
+      bedrooms: property.bedrooms ? Number(property.bedrooms) : undefined,
+      bathrooms: property.bathrooms ? Number(property.bathrooms) : undefined,
+      areaSqFt: property.areaSqFt ? Number(property.areaSqFt) : undefined,
+      amenities: property.amenities || [],
+      photos: property.photos || [],
+      ownerName: property.ownerName || 'Direct Owner',
+      ownerPhone: property.ownerPhone || '',
+      ownerEmail: property.ownerEmail || '',
+      ownerAvatar: property.ownerAvatar || '',
+      ownerVerified: property.ownerVerified ?? true,
+      brokerSavings: property.brokerSavings ? Number(property.brokerSavings) : undefined,
+      isFeatured: property.isFeatured ?? false,
+      status: property.status || 'available',
+      createdAt: property.createdAt || new Date().toISOString()
+    }, { merge: true });
+    console.log(`[Firestore] ✅ Property unit saved to 'properties' collection: ${property.title} (ID: ${propId})`);
+  } catch (error) {
+    console.error("Error saving property to Firestore:", error);
+  }
+}
+
 // --- Save Favorites in Cloud profile ---
 export async function syncFavoritesToCloud(userId: string, favorites: string[]): Promise<void> {
   const userRef = doc(db, 'users', userId);
