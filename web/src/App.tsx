@@ -201,7 +201,8 @@ export default function App() {
     return localStorage.getItem('nestdirect_kyc_verified_v4') === 'true';
   });
 
-  // --- Auth Form States ---
+  // --- Auth Form & Savings Calculator States ---
+  const [calcMonthlyRent, setCalcMonthlyRent] = useState<number>(30000);
   const [authTab, setAuthTab] = useState<'quick' | 'signin' | 'signup'>('quick');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -1697,64 +1698,91 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 📈 Upgraded Market Intelligence & Direct Savings Hub */}
+                {/* ⚡ Upgraded Interactive Direct Savings Calculator & Instant Deal Launcher */}
                 <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white rounded-[2rem] p-6 border border-slate-800 shadow-2xl space-y-6 text-left relative overflow-hidden">
+                  {/* Glowing ambient background circle */}
+                  <div className="absolute -top-12 -right-12 w-36 h-36 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
+
+                  {/* Header */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-[#84cc16]/10 rounded-xl flex items-center justify-center text-[#84cc16] border border-[#84cc16]/30 shadow-md">
-                        <TrendingUp className="w-5 h-5" />
+                      <div className="w-10 h-10 bg-amber-400/10 rounded-xl flex items-center justify-center text-amber-400 border border-amber-400/30 shadow-md">
+                        <Zap className="w-5 h-5" />
                       </div>
                       <div>
                         <h4 className="text-xs font-black uppercase tracking-tight text-white flex items-center gap-2">
-                          Market Pulse
-                          <span className="w-2 h-2 rounded-full bg-[#84cc16] animate-pulse" />
+                          Savings Calculator
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                         </h4>
-                        <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest">Chennai Direct Rent Index</p>
+                        <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest">Direct Deal Savings Guarantee</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-black text-slate-950 bg-[#84cc16] px-3 py-1 rounded-xl shadow-md uppercase tracking-wider">+14.2% Demand</span>
+                    <span className="text-[9px] font-black text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-xl border border-amber-400/30 uppercase tracking-wider">0% Agency Fee</span>
                   </div>
 
-                  {/* 💰 Direct Savings Highlight */}
-                  <div className="p-4 bg-slate-800/80 rounded-2xl border border-slate-700/80 space-y-1">
-                    <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest block">Est. Tenant Savings in {selectedCity}</span>
+                  {/* Rent Slider Control */}
+                  <div className="space-y-3 bg-slate-800/60 p-4 rounded-2xl border border-slate-700/60">
+                    <div className="flex justify-between items-center text-[10px] font-extrabold uppercase tracking-wider text-slate-300">
+                      <span>Monthly Rent</span>
+                      <span className="text-amber-400 font-mono text-xs">₹{calcMonthlyRent.toLocaleString()}</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="10000" 
+                      max="100000" 
+                      step="2500" 
+                      value={calcMonthlyRent}
+                      onChange={(e) => setCalcMonthlyRent(Number(e.target.value))}
+                      className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-400"
+                    />
+                    <div className="flex justify-between text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+                      <span>₹10,000</span>
+                      <span>₹50,000</span>
+                      <span>₹100,000+</span>
+                    </div>
+                  </div>
+
+                  {/* Live Savings Output Card */}
+                  <div className="p-4 bg-gradient-to-r from-emerald-950/60 to-slate-900 rounded-2xl border border-emerald-500/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] text-emerald-400 font-extrabold uppercase tracking-widest">Direct Savings Today</span>
+                      <span className="text-[8px] text-slate-300 font-bold bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded uppercase">Verified</span>
+                    </div>
                     <div className="flex items-baseline justify-between">
-                      <span className="text-xl font-black text-[#84cc16] tracking-tight">₹{(selectedCity === 'Adyar' ? 45000 : selectedCity === 'OMR' ? 25000 : 35000).toLocaleString()}</span>
-                      <span className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider">Zero Broker Deposit</span>
+                      <span className="text-2xl font-black text-white font-mono tracking-tight">₹{calcMonthlyRent.toLocaleString()}</span>
+                      <span className="text-[9px] text-slate-400 font-medium">1 Month Rent Saved</span>
+                    </div>
+                    <div className="pt-2 border-t border-emerald-500/20 flex items-center justify-between text-[9px] text-slate-300 font-medium">
+                      <span>Standard Brokerage Fee</span>
+                      <span className="line-through text-slate-500 font-mono">₹{calcMonthlyRent.toLocaleString()}</span>
                     </div>
                   </div>
 
-                  {/* 📊 Interactive Animated Sparkline Chart */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">
-                      <span>Listing Velocity</span>
-                      <span className="text-white">Peak Activity: Week 4</span>
-                    </div>
-                    <div className="flex items-end gap-2 h-20 px-1 pt-2">
-                      {[35, 48, 42, 65, 58, 82, 60, 92, 100].map((h, i) => (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative cursor-pointer">
-                          {/* Tooltip on hover */}
-                          <div className="absolute -top-7 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-[#84cc16] text-[8px] font-black px-1.5 py-0.5 rounded shadow-lg whitespace-nowrap pointer-events-none z-30">
-                            W{i+1}: {h * 4} units
-                          </div>
-                          <motion.div 
-                            initial={{ height: 0 }}
-                            animate={{ height: `${h}%` }}
-                            transition={{ delay: i * 0.04, duration: 0.6 }}
-                            className={`w-full rounded-t-lg transition-all ${
-                              i === 8 
-                                ? 'bg-gradient-to-t from-[#84cc16] to-emerald-400 shadow-lg shadow-[#84cc16]/20' 
-                                : 'bg-slate-700/60 group-hover:bg-[#84cc16]/60'
-                            }`}
-                          />
-                        </div>
-                      ))}
-                    </div>
+                  {/* Quick Action Buttons */}
+                  <div className="space-y-2 pt-1">
+                    <button
+                      onClick={() => setWebActiveSection('docs')}
+                      className="w-full py-2.5 px-4 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <ClipboardList className="w-4 h-4" />
+                      Draft Zero-Brokerage Agreement
+                    </button>
+                    <button
+                      onClick={() => setIsGuruOpen(true)}
+                      className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all border border-slate-700 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      Ask AI Rental Advisor
+                    </button>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">
-                    <span>98.4% Owner Response</span>
-                    <span className="text-[#84cc16]">Verified Live</span>
+                  {/* Trust Footer Badges */}
+                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">
+                    <span className="flex items-center gap-1">
+                      <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                      TN Tenancy Compliant
+                    </span>
+                    <span className="text-amber-400">100% Direct Owner</span>
                   </div>
                 </div>
               </aside>
