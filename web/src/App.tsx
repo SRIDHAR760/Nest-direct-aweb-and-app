@@ -1762,8 +1762,8 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* ⚡ Upgraded Interactive Direct Savings Calculator & Instant Deal Launcher */}
-                <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white rounded-[2rem] p-6 border border-slate-800 shadow-2xl space-y-6 text-left relative overflow-hidden">
+                {/* 📜 Interactive Legal Rental Agreement & Tenant Protection Hub */}
+                <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white rounded-[2rem] p-6 border border-slate-800 shadow-2xl space-y-5 text-left relative overflow-hidden">
                   {/* Glowing ambient background circle */}
                   <div className="absolute -top-12 -right-12 w-36 h-36 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
 
@@ -1771,75 +1771,51 @@ export default function App() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-amber-400/10 rounded-xl flex items-center justify-center text-amber-400 border border-amber-400/30 shadow-md">
-                        <Zap className="w-5 h-5" />
+                        <ClipboardList className="w-5 h-5" />
                       </div>
                       <div>
                         <h4 className="text-xs font-black uppercase tracking-tight text-white flex items-center gap-2">
-                          Savings Calculator
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                          Rental Legal Hub
+                          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                         </h4>
-                        <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest">Direct Deal Savings Guarantee</p>
+                        <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest">Tamil Nadu Tenancy Act</p>
                       </div>
                     </div>
-                    <span className="text-[9px] font-black text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-xl border border-amber-400/30 uppercase tracking-wider">0% Agency Fee</span>
+                    <span className="text-[9px] font-black text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-xl border border-amber-400/30 uppercase tracking-wider">Free Draft</span>
                   </div>
 
-                  {/* Rent Slider Control */}
-                  <div className="space-y-3 bg-slate-800/60 p-4 rounded-2xl border border-slate-700/60">
-                    <div className="flex justify-between items-center text-[10px] font-extrabold uppercase tracking-wider text-slate-300">
-                      <span>Monthly Rent</span>
-                      <span className="text-amber-400 font-mono text-xs">₹{calcMonthlyRent.toLocaleString()}</span>
+                  {/* Feature Highlights Card */}
+                  <div className="p-4 bg-slate-800/60 rounded-2xl border border-slate-700/60 space-y-2.5">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-200">
+                      <Check className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                      <span>Zero-Brokerage Security Clause Included</span>
                     </div>
-                    <input 
-                      type="range" 
-                      min="10000" 
-                      max="100000" 
-                      step="2500" 
-                      value={calcMonthlyRent}
-                      onChange={(e) => setCalcMonthlyRent(Number(e.target.value))}
-                      className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-400"
-                    />
-                    <div className="flex justify-between text-[8px] text-slate-400 font-bold uppercase tracking-widest">
-                      <span>₹10,000</span>
-                      <span>₹50,000</span>
-                      <span>₹100,000+</span>
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-200">
+                      <Check className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                      <span>Standard 11-Month Rental Duration</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-200">
+                      <Check className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                      <span>Instant PDF Download & e-Sign Ready</span>
                     </div>
                   </div>
 
-                  {/* Live Savings Output Card */}
-                  <div className="p-4 bg-gradient-to-r from-emerald-950/60 to-slate-900 rounded-2xl border border-emerald-500/30 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] text-emerald-400 font-extrabold uppercase tracking-widest">Direct Savings Today</span>
-                      <span className="text-[8px] text-slate-300 font-bold bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded uppercase">Verified</span>
-                    </div>
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-2xl font-black text-white font-mono tracking-tight">₹{calcMonthlyRent.toLocaleString()}</span>
-                      <span className="text-[9px] text-slate-400 font-medium">1 Month Rent Saved</span>
-                    </div>
-                    <div className="pt-2 border-t border-emerald-500/20 flex items-center justify-between text-[9px] text-slate-300 font-medium">
-                      <span>Standard Brokerage Fee</span>
-                      <span className="line-through text-slate-500 font-mono">₹{calcMonthlyRent.toLocaleString()}</span>
-                    </div>
-                  </div>
-
-                  {/* Quick Action Buttons */}
-                  <div className="space-y-2 pt-1">
-                    <button
-                      onClick={() => setWebActiveSection('docs')}
-                      className="w-full py-2.5 px-4 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <ClipboardList className="w-4 h-4" />
-                      Draft Zero-Brokerage Agreement
-                    </button>
-                  </div>
+                  {/* Primary Call to Action */}
+                  <button
+                    onClick={() => setWebActiveSection('docs')}
+                    className="w-full py-3 px-4 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                    Draft Free Rental Agreement Now
+                  </button>
 
                   {/* Trust Footer Badges */}
-                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">
+                  <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">
                     <span className="flex items-center gap-1">
                       <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                      TN Tenancy Compliant
+                      Legally Compliant
                     </span>
-                    <span className="text-amber-400">100% Direct Owner</span>
+                    <span className="text-amber-400">100% Free Tool</span>
                   </div>
                 </div>
               </aside>
