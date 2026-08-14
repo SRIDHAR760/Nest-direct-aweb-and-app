@@ -8,11 +8,17 @@
     <meta property="og:title" content="NestDirect – Direct-to-Owner Rentals in Chennai" />
     <meta property="og:description" content="Zero-brokerage rental listings across Adyar, Mylapore, OMR, Velachery, Besant Nagar, and Sholinganallur." />
     <meta property="og:type" content="website" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <!-- Preconnect to CDNs for non-blocking asset fetching -->
+    <link rel="preconnect" href="https://unpkg.com" crossorigin />
+    <link rel="dns-prefetch" href="https://unpkg.com" />
+    
+    <!-- Non-blocking Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" /></noscript>
   </head>
   <body class="antialiased bg-slate-50/50">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
