@@ -20,7 +20,7 @@ import {
   MapPin, DollarSign, Building, Sparkles, User, Percent, 
   ChevronRight, Compass, Shield, ShieldAlert, Info, Plus,
   Grid, Bell, Check, Loader2, ArrowUpRight, Share2, ClipboardList,
-  Map, Bus, Car, Bike, Zap, X, UserCheck, Wifi, Dumbbell
+  Map, Bus, Car, Bike, Zap, X, UserCheck, Wifi, Dumbbell, TrendingUp
 } from 'lucide-react';
 
 export interface Workplace {
@@ -32,7 +32,7 @@ export interface Workplace {
   commuteTimes: Record<string, { metro: number; auto: number; bike: number }>;
 }
 
-export const workplacesData: Workplace[] = [
+const workplacesData: Workplace[] = [
   { 
     id: 'iitm', 
     name: 'IIT Madras Research Park', 
