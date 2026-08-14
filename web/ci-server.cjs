@@ -218,6 +218,19 @@ app.post('/api/generate-agreement', (req, res) => {
   res.json({ agreement: `CI Stub Agreement for ${sanitizeString(propertyTitle)} — Tenant: ${sanitizeString(tenantName)} — Rent: ${Number(rent)}` });
 });
 
+// Serve static frontend files (dist/ or index.html fallback)
+const distPath = require('path').join(process.cwd(), 'dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get('*', (req, res) => {
+    res.sendFile(require('path').join(distPath, 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.sendFile(require('path').join(__dirname, 'index.html'));
+  });
+}
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[CI Server] NestDirect API server running on http://0.0.0.0:${PORT}`);
   console.log(`[CI Server] Endpoints: /api/health, /api/sync-session, /api/run-load-test`);
