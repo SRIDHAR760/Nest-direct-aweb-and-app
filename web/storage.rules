@@ -1,0 +1,67 @@
+rules_version = '2';
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 📦 FIREBASE CLOUD STORAGE SECURITY RULES — NESTDIRECT
+// ═════════════════════════════════════════════════════════════════════════════
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isDoc() {
+      return request.resource.contentType.matches('application/pdf')
+          || request.resource.contentType.matches('text/plain');
+    }
+
+    function isUnder5MB() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. PROPERTY PHOTOS (Public Read, Owner Upload)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /properties/{propertyId}/{allPaths=**} {
+      // Anyone can view property photos
+      allow read: if true;
+      
+      // Signed-in users can upload images up to 5MB
+      allow write: if isSignedIn() && isImage() && isUnder5MB();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. USER AVATARS & PROFILES
+    // ─────────────────────────────────────────────────────────────────────────
+    match /users/{userId}/{allPaths=**} {
+      // Anyone can view profile avatars
+      allow read: if true;
+
+      // Only the user themselves can upload/update their avatar
+      allow write: if isOwner(userId) && isImage() && isUnder5MB();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3. RENTAL AGREEMENT DOCUMENTS & ATTACHMENTS
+    // ─────────────────────────────────────────────────────────────────────────
+    match /documents/{userId}/{allPaths=**} {
+      // Only document owner can read/write their legal documents
+      allow read, write: if isOwner(userId) && (isDoc() || isImage()) && isUnder5MB();
+    }
+
+    // Default deny all other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

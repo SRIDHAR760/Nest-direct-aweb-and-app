@@ -27,7 +27,12 @@ import {
   orderBy,
   where,
   getDocFromServer
-} from 'firebase/firestore';
+import { 
+  getStorage, 
+  ref, 
+  uploadBytes, 
+  getDownloadURL 
+} from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase App
@@ -39,6 +44,9 @@ export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId 
 // Initialize Authentication
 export const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
+
+// Initialize Storage (for uploading property images, avatars, documents)
+export const storage = getStorage(app);
 
 export { app, googleProvider };
 
@@ -292,3 +300,40 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   // Log warning and throw the error as mandated by the Firebase Integration Skill
   throw new Error(JSON.stringify(errInfo));
 }
+
+// ─── Firebase Storage Helper Functions ────────────────────────────────────────
+
+/**
+ * Upload a property photo to Firebase Storage
+ * Bucket path: properties/{propertyId}/{fileName}
+ */
+export async function uploadPropertyPhoto(propertyId: string, file: File): Promise<string> {
+  try {
+    const storageRef = ref(storage, `properties/${propertyId}/${Date.now()}_${file.name}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    console.log(`[Firebase Storage] ✅ Property photo uploaded successfully: ${downloadURL}`);
+    return downloadURL;
+  } catch (error) {
+    console.error('[Firebase Storage] Error uploading property photo:', error);
+    throw error;
+  }
+}
+
+/**
+ * Upload a user profile avatar to Firebase Storage
+ * Bucket path: users/{userId}/avatar_{fileName}
+ */
+export async function uploadUserAvatar(userId: string, file: File): Promise<string> {
+  try {
+    const storageRef = ref(storage, `users/${userId}/avatar_${Date.now()}_${file.name}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    console.log(`[Firebase Storage] ✅ User avatar uploaded successfully: ${downloadURL}`);
+    return downloadURL;
+  } catch (error) {
+    console.error('[Firebase Storage] Error uploading user avatar:', error);
+    throw error;
+  }
+}
+
