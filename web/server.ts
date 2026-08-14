@@ -30,12 +30,17 @@ async function startServer() {
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
     // Phase 1 NEW: Content-Security-Policy (SEC-H07 fix)
+    const isDev = process.env.NODE_ENV !== 'production';
+    const scriptSrc = isDev 
+      ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdnjs.cloudflare.com; "
+      : "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com; ";
+
     res.setHeader('Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com; " +
+      scriptSrc +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; " +
       "font-src 'self' https://fonts.gstatic.com; " +
-      "img-src 'self' data: https://images.unsplash.com https://*.tile.openstreetmap.org https://server.arcgisonline.com blob:; " +
-      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://generativelanguage.googleapis.com;"
+      "img-src 'self' data: https://images.unsplash.com https://*.tile.openstreetmap.org https://server.arcgisonline.com blob: https://api.dicebear.com; " +
+      "connect-src 'self' ws: wss: http: https: https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://generativelanguage.googleapis.com;"
     );
 
     // Phase 1 NEW: HSTS (SEC-H06 fix) — only enforce over HTTPS
