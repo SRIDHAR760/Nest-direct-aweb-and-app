@@ -126,9 +126,9 @@ export async function signUpWithEmail(email: string, pass: string, name: string)
 
 // --- Save User Profile into Firestore ---
 // Writes to TWO collections:
-//   1. users/{uid}            → Full profile (auth, favorites, KYC, onboarding)
-//   2. registered_users/{uid} → Signup registry (name, email, provider, joined date)
-export async function saveUserProfile(user: User): Promise<void> {
+//   1. users/{uid}            → Full profile (auth, favorites, KYC, onboarding, role)
+//   2. registered_users/{uid} → Signup registry (name, email, provider, joined date, role)
+export async function saveUserProfile(user: User, role: 'OWNER' | 'SEEKER' | 'ADMIN' = 'SEEKER'): Promise<void> {
   const userRef = doc(db, 'users', user.uid);
   const registryRef = doc(db, 'registered_users', user.uid);
 
@@ -145,7 +145,7 @@ export async function saveUserProfile(user: User): Promise<void> {
         ? 'Google'
         : user.providerData?.[0]?.providerId === 'password'
           ? 'Email'
-          : 'Unknown';
+          : 'Mobile OTP';
 
     // Load current local states
     const onboardingCompleted = localStorage.getItem('nestdirect_onboarding_v4_done') === 'true';
@@ -160,6 +160,7 @@ export async function saveUserProfile(user: User): Promise<void> {
         email: user.email || (user.isAnonymous ? 'guest@nestdirect.in' : ''),
         photoURL: photoURL,
         provider: provider,
+        role: role,
         favorites: ['prop-1', 'prop-5'],
         onboardingCompleted: onboardingCompleted,
         isKycVerified: isKycVerified,
@@ -173,27 +174,29 @@ export async function saveUserProfile(user: User): Promise<void> {
         email: user.email || (user.isAnonymous ? 'guest@nestdirect.in' : ''),
         photoURL: photoURL,
         provider: provider,
+        role: role,
         joinedAt: joinedAt,
         isGuest: user.isAnonymous || false,
         deviceType: /Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Web',
         city: 'Chennai',
       }, { merge: true });
 
-      console.log(`[NestDirect] ✅ New user registered: ${displayName} (${provider}) → saved to users + registered_users`);
+      console.log(`[NestDirect] ✅ New user registered: ${displayName} (${provider}) as ${role} → saved to users + registered_users`);
     } else {
-      // Keep displayName and photoURL synced
+      // Keep displayName, photoURL, and role synced
       const existingData = userSnap.data();
-      if (!existingData.displayName || !existingData.photoURL) {
-        await setDoc(userRef, {
-          displayName: existingData.displayName || displayName,
-          photoURL: existingData.photoURL || photoURL
-        }, { merge: true });
-      }
+      await setDoc(userRef, {
+        displayName: existingData.displayName || displayName,
+        photoURL: existingData.photoURL || photoURL,
+        role: existingData.role || role
+      }, { merge: true });
+
       // Always update last seen in registry
       await setDoc(registryRef, {
         lastSeenAt: joinedAt,
         name: displayName,
         provider: provider,
+        role: existingData.role || role
       }, { merge: true });
     }
   } catch (error) {

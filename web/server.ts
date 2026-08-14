@@ -19,6 +19,9 @@ async function startServer() {
   const ALLOWED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'http://10.0.2.2:3000',
+    'http://192.168.137.1:3000',
+    'http://10.88.164.109:3000',
     process.env.APP_URL || '',
   ].filter(Boolean);
 
@@ -51,12 +54,14 @@ async function startServer() {
 
     // Phase 6 NEW: CORS Whitelist (SEC-C01 fix)
     const origin = req.headers.origin as string;
-    if (origin && ALLOWED_ORIGINS.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
+    if (!origin || ALLOWED_ORIGINS.includes(origin) || /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|127\.0\.0\.1|localhost)(:\d+)?$/.test(origin)) {
+      if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Vary', 'Origin');
+      }
       res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-Token');
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Vary', 'Origin');
     }
 
     if (req.method === 'OPTIONS') {

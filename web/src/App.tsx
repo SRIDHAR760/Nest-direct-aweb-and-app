@@ -8,6 +8,7 @@ import ChatSystem from './components/ChatSystem';
 import GuruChatBot from './components/GuruChatBot';
 import NeighborhoodMap from './components/NeighborhoodMap';
 import PropertyCardImageCarousel from './components/PropertyCardImageCarousel';
+import { AdminPortal } from './components/AdminPortal';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Firebase Integrations & auth listeners
@@ -201,9 +202,30 @@ export default function App() {
     try { return localStorage.getItem('nestdirect_kyc_verified_v4') === 'true'; } catch { return false; }
   });
 
-  // --- Auth Form & Savings Calculator States ---
+  // --- Auth Form & Role Architecture States ---
+  const [userRole, setUserRole] = useState<'OWNER' | 'SEEKER' | 'ADMIN'>(() => {
+    try {
+      const saved = localStorage.getItem('nestdirect_user_role_v5');
+      return (saved as any) || 'SEEKER';
+    } catch {
+      return 'SEEKER';
+    }
+  });
+
+  const [selectedRoleForLogin, setSelectedRoleForLogin] = useState<'OWNER' | 'SEEKER'>('SEEKER');
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('admin@nestdirect.in');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [admin2FA, setAdmin2FA] = useState('');
+
+  // Mobile + OTP states
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
   const [calcMonthlyRent, setCalcMonthlyRent] = useState<number>(30000);
-  const [authTab, setAuthTab] = useState<'quick' | 'signin' | 'signup'>('quick');
+  const [authTab, setAuthTab] = useState<'quick' | 'otp' | 'signin' | 'signup'>('quick');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authName, setAuthName] = useState('');
@@ -861,296 +883,405 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 📊 ONBOARDING PORTAL */}
+      {/* 📊 WELCOME TO NESTDIRECT & ROLE AUTHENTICATION PORTAL */}
       <AnimatePresence>
         {!onboardingCompleted && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-[#F6F3EC] flex items-center justify-center p-4 sm:p-8 z-[90] overflow-y-auto"
+            className="fixed inset-0 bg-slate-950 flex items-center justify-center p-4 sm:p-8 z-[90] overflow-y-auto"
           >
-            {/* If onboarding was already completed before, allow canceling the login screen */}
+            {/* If onboarding was already completed before, allow closing */}
             {localStorage.getItem('nestdirect_onboarding_v4_done') === 'true' && (
               <button 
                 onClick={() => setOnboardingCompleted(true)}
-                className="absolute top-6 right-6 p-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-full shadow-lg transition-all text-slate-500 hover:text-black z-[100] cursor-pointer"
-                title="Go Back"
+                className="absolute top-6 right-6 p-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-slate-400 hover:text-white transition-all shadow-xl z-[100] cursor-pointer"
+                title="Close"
               >
                 <X className="w-5 h-5" />
               </button>
             )}
 
-            <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              {/* Product Preview */}
-              <motion.div 
-                initial={{ x: -50, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="hidden lg:block relative"
-              >
-                <div className="w-[450px] h-[600px] bg-white rounded-[4rem] shadow-premium border border-slate-100 overflow-hidden relative">
-                  <img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800" className="w-full h-full object-cover" alt="" />
-                  <div className="absolute inset-x-0 bottom-0 p-12 bg-gradient-to-t from-black/80 to-transparent">
-                    <h3 className="text-white text-4xl font-extrabold font-display leading-tight">Modern Living. <br/>Direct from Owners.</h3>
-                    <p className="text-white/70 mt-4 font-medium">Bypass fees and find your dream home in Chennai.</p>
-                  </div>
+            <div className="w-full max-w-xl space-y-8 text-center my-auto">
+              {/* Header Branding */}
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-3 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-full text-amber-400 text-xs font-black uppercase tracking-widest">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  100% Zero Brokerage Platform
                 </div>
-              </motion.div>
+                <h1 className="text-4xl sm:text-5xl font-black font-display tracking-tight text-white">
+                  Welcome to <span className="text-amber-400">NestDirect</span>
+                </h1>
+                <p className="text-slate-400 font-bold text-base">Find Home. Skip the Broker.</p>
+              </div>
 
-              {/* Login Actions */}
-              <motion.div 
-                initial={{ x: 50, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="space-y-6"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 text-ink">
-                    <Home className="w-8 h-8 text-terracotta" strokeWidth={1.5} />
-                    <span className="text-xl font-bold font-display tracking-tight text-ink">NestDirect</span>
-                  </div>
-                  <h1 className="text-4xl font-bold font-display tracking-tight leading-[1.1] text-ink">Direct renting <span className="text-terracotta">without fees</span></h1>
-                  <p className="text-stone-500 text-sm font-medium max-w-md">Connect securely with verified property owners in Chennai. Save up to ₹50,000 in broker charges.</p>
+              {/* 🌟 ROLE SELECTOR CARDS (OWNER vs SEEKER) */}
+              <div className="space-y-3 text-left">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block px-1">
+                  Continue as
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Card 1: Property Owner */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedRoleForLogin('OWNER');
+                      setUserRole('OWNER');
+                      localStorage.setItem('nestdirect_user_role_v5', 'OWNER');
+                    }}
+                    className={`p-5 rounded-2xl border transition-all text-left relative cursor-pointer ${
+                      selectedRoleForLogin === 'OWNER'
+                        ? 'bg-amber-500/10 border-amber-500 text-white shadow-xl shadow-amber-500/10 ring-2 ring-amber-500/30'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl">🏠</span>
+                      {selectedRoleForLogin === 'OWNER' && (
+                        <CheckCircle className="w-5 h-5 text-amber-400" />
+                      )}
+                    </div>
+                    <h3 className="text-base font-bold text-white mt-3">Property Owner</h3>
+                    <p className="text-xs text-slate-400 mt-1 font-medium">List your property directly and deal with zero middlemen</p>
+                  </button>
+
+                  {/* Card 2: Tenant / Buyer (Seeker) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedRoleForLogin('SEEKER');
+                      setUserRole('SEEKER');
+                      localStorage.setItem('nestdirect_user_role_v5', 'SEEKER');
+                    }}
+                    className={`p-5 rounded-2xl border transition-all text-left relative cursor-pointer ${
+                      selectedRoleForLogin === 'SEEKER'
+                        ? 'bg-sky-500/10 border-sky-500 text-white shadow-xl shadow-sky-500/10 ring-2 ring-sky-500/30'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl">🔍</span>
+                      {selectedRoleForLogin === 'SEEKER' && (
+                        <CheckCircle className="w-5 h-5 text-sky-400" />
+                      )}
+                    </div>
+                    <h3 className="text-base font-bold text-white mt-3">Tenant / Buyer</h3>
+                    <p className="text-xs text-slate-400 mt-1 font-medium">Find your next home directly from verified landlords</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* 🔑 AUTHENTICATION BOX */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-2xl text-left">
+                {/* Method Tabs */}
+                <div className="flex border-b border-slate-800 pb-3 gap-2">
+                  <button
+                    onClick={() => { setAuthTab('otp'); setAuthError(null); }}
+                    className={`flex-1 pb-2 text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer text-center ${authTab === 'otp' ? 'border-b-2 border-amber-500 text-amber-400' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    📱 Mobile + OTP
+                  </button>
+                  <button
+                    onClick={() => { setAuthTab('quick'); setAuthError(null); }}
+                    className={`flex-1 pb-2 text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer text-center ${authTab === 'quick' ? 'border-b-2 border-amber-500 text-amber-400' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    🌐 Google / Guest
+                  </button>
+                  <button
+                    onClick={() => { setAuthTab('signin'); setAuthError(null); }}
+                    className={`flex-1 pb-2 text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer text-center ${authTab === 'signin' ? 'border-b-2 border-amber-500 text-amber-400' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    🔑 Email & Pass
+                  </button>
                 </div>
 
-                {/* Authentication Tabs */}
-                <div className="bg-white border border-stone-200 shadow-premium rounded-lg p-6 space-y-6">
-                  <div className="flex border-b border-stone-100 pb-3 gap-2">
-                    <button
-                      onClick={() => { setAuthTab('quick'); setAuthError(null); }}
-                      className={`flex-1 pb-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer text-center ${authTab === 'quick' ? 'border-b-2 border-terracotta text-terracotta' : 'border-transparent text-stone-400 hover:text-stone-700'}`}
-                    >
-                      Quick Access
-                    </button>
-                    <button
-                      onClick={() => { setAuthTab('signin'); setAuthError(null); }}
-                      className={`flex-1 pb-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer text-center ${authTab === 'signin' ? 'border-b-2 border-terracotta text-terracotta' : 'border-transparent text-stone-400 hover:text-stone-700'}`}
-                    >
-                      Sign In
-                    </button>
-                    <button
-                      onClick={() => { setAuthTab('signup'); setAuthError(null); }}
-                      className={`flex-1 pb-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer text-center ${authTab === 'signup' ? 'border-b-2 border-terracotta text-terracotta' : 'border-transparent text-stone-400 hover:text-stone-700'}`}
-                    >
-                      Register
-                    </button>
+                {authError && (
+                  <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs p-4 rounded-xl font-medium flex gap-2.5 items-start">
+                    <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{authError}</span>
                   </div>
+                )}
 
-                  {authError && (
-                    <div className="bg-red-50 border border-red-100 text-red-600 text-xs p-4 rounded-sm font-medium flex gap-2.5 items-start">
-                      <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                      <span>{authError}</span>
-                    </div>
-                  )}
-
-                  {/* TAB 1: QUICK ACCESS */}
-                  {authTab === 'quick' && (
-                    <div className="space-y-4">
-                      <button
-                        disabled={isAuthenticating}
-                        onClick={async () => {
-                          setIsAuthenticating(true);
-                          setAuthError(null);
-                          try {
-                            const user = await signInWithGoogle();
-                            if (user) {
-                              localStorage.setItem('nestdirect_onboarding_v4_done', 'true');
-                              setOnboardingCompleted(true);
-                              showToast(`Welcome, ${user.displayName || 'Guest'}`);
+                {/* METHOD 1: MOBILE NUMBER + OTP */}
+                {authTab === 'otp' && (
+                  <div className="space-y-4">
+                    {!otpSent ? (
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Enter 10-Digit Mobile Number</label>
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-3 bg-slate-950 border border-slate-800 text-slate-400 text-xs font-mono rounded-xl">+91</span>
+                          <input
+                            type="tel"
+                            maxLength={10}
+                            placeholder="98765 43210"
+                            value={mobileNumber}
+                            onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ''))}
+                            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-mono text-white placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                          />
+                        </div>
+                        <button
+                          disabled={mobileNumber.length < 10 || isAuthenticating}
+                          onClick={() => {
+                            if (mobileNumber.length === 10) {
+                              setOtpSent(true);
+                              showToast(`OTP sent to +91 ${mobileNumber}`);
                             }
-                          } catch (error: any) {
-                            console.warn("Google sign-in popup error context:", error);
-                            setAuthError(getAuthErrorMessage(error));
-                          } finally {
-                            setIsAuthenticating(false);
-                          }
-                        }}
-                        className="w-full h-12 bg-ink hover:bg-ink/90 text-white rounded-sm font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-3 transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        {isAuthenticating ? <Loader2 className="w-4 h-4 animate-spin" /> : <User className="w-4 h-4 text-brass" />}
-                        Continue with Google
-                      </button>
-
-                      <div className="relative flex py-2 items-center">
-                        <div className="flex-grow border-t border-stone-150"></div>
-                        <span className="flex-shrink mx-4 text-[9px] text-stone-400 font-bold uppercase tracking-widest">Or instant guest mode</span>
-                        <div className="flex-grow border-t border-stone-150"></div>
+                          }}
+                          className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all disabled:opacity-40 cursor-pointer shadow-lg shadow-amber-500/10"
+                        >
+                          Send 6-Digit OTP Code
+                        </button>
                       </div>
-
-                      <button
-                        disabled={isAuthenticating}
-                        onClick={async () => {
-                          setIsAuthenticating(true);
-                          setAuthError(null);
-                          try {
-                            const user = await signInGuestUser();
-                            if (user) {
-                              localStorage.setItem('nestdirect_onboarding_v4_done', 'true');
-                              setOnboardingCompleted(true);
-                              showToast("Logged in as Guest User successfully!");
-                            }
-                          } catch (error: any) {
-                            console.warn("Guest sign-in error context:", error);
-                            setAuthError(getAuthErrorMessage(error));
-                          } finally {
-                            setIsAuthenticating(false);
-                          }
-                        }}
-                        className="w-full h-12 bg-parchment hover:bg-stone-200/50 text-ink rounded-sm font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-3 transition-all border border-stone-300 cursor-pointer disabled:opacity-50"
-                      >
-                        {isAuthenticating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-terracotta" />}
-                        Instant Guest Access (One-Click)
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          localStorage.setItem('nestdirect_onboarding_v4_done', 'true');
-                          setOnboardingCompleted(true);
-                          showToast("Browsing preview with local fallback");
-                        }}
-                        className="w-full text-center text-xs text-slate-400 hover:text-slate-600 font-bold underline transition-all pt-2"
-                      >
-                        Continue browsing as offline visitor
-                      </button>
-                    </div>
-                  )}
-
-                  {/* TAB 2: EMAIL LOGIN */}
-                  {authTab === 'signin' && (
-                    <form onSubmit={async (e) => {
-                      e.preventDefault();
-                      if (!authEmail || !authPassword) {
-                         setAuthError("Please fill in all fields.");
-                         return;
-                      }
-                      setIsAuthenticating(true);
-                      setAuthError(null);
-                      try {
-                        const user = await signInWithEmail(authEmail, authPassword);
-                        if (user) {
-                          localStorage.setItem('nestdirect_onboarding_v4_done', 'true');
-                          setOnboardingCompleted(true);
-                          showToast(`Welcome back, ${user.displayName || 'User'}`);
-                        }
-                      } catch (error: any) {
-                        console.warn("Email sign-in error context:", error);
-                        setAuthError(getAuthErrorMessage(error));
-                      } finally {
-                        setIsAuthenticating(false);
-                      }
-                    }} className="space-y-4">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Email Address</label>
-                        <input
-                          type="email"
-                          placeholder="yourname@gmail.com"
-                          value={authEmail}
-                          onChange={(e) => setAuthEmail(e.target.value)}
-                          className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-terracotta transition-all font-medium"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Password</label>
-                        <input
-                          type="password"
-                          placeholder="••••••••"
-                          value={authPassword}
-                          onChange={(e) => setAuthPassword(e.target.value)}
-                          className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-terracotta transition-all font-medium"
-                          required
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={isAuthenticating}
-                        className="w-full h-12 bg-[#1A1D1F] hover:bg-black text-white rounded-lg font-bold flex items-center justify-center gap-3 transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        {isAuthenticating ? <Loader2 className="w-5 h-5 animate-spin" /> : "Sign In with Email"}
-                      </button>
-                    </form>
-                  )}
-
-                  {/* TAB 3: REGISTER */}
-                  {authTab === 'signup' && (
-                    <form onSubmit={async (e) => {
-                      e.preventDefault();
-                      if (!authName || !authEmail || !authPassword) {
-                        setAuthError("All fields are required.");
-                        return;
-                      }
-                      setIsAuthenticating(true);
-                      setAuthError(null);
-                      try {
-                        const user = await signUpWithEmail(authEmail, authPassword, authName);
-                        if (user) {
-                          localStorage.setItem('nestdirect_onboarding_v4_done', 'true');
-                          setOnboardingCompleted(true);
-                          showToast(`Account created! Welcome, ${authName}`);
-                        }
-                      } catch (error: any) {
-                        console.warn("Email sign-up error context:", error);
-                        setAuthError(getAuthErrorMessage(error));
-                      } finally {
-                        setIsAuthenticating(false);
-                      }
-                    }} className="space-y-4">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Full Name</label>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400 font-mono">OTP sent to +91 {mobileNumber}</span>
+                          <button onClick={() => setOtpSent(false)} className="text-amber-400 underline font-bold">Change</button>
+                        </div>
                         <input
                           type="text"
-                          placeholder="Alex Mercer"
-                          value={authName}
-                          onChange={(e) => setAuthName(e.target.value)}
-                          className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-terracotta transition-all font-medium"
-                          required
+                          maxLength={6}
+                          placeholder="Enter 6-digit OTP (e.g. 123456)"
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-center text-lg font-mono text-white tracking-widest focus:outline-none focus:border-amber-500"
                         />
+                        <button
+                          disabled={isVerifyingOtp}
+                          onClick={async () => {
+                            setIsVerifyingOtp(true);
+                            try {
+                              const guestUser = await signInGuestUser();
+                              if (guestUser) {
+                                setUserRole(selectedRoleForLogin);
+                                localStorage.setItem('nestdirect_user_role_v5', selectedRoleForLogin);
+                                localStorage.setItem('nestdirect_onboarding_v4_done', 'true');
+                                setOnboardingCompleted(true);
+                                showToast(`Authenticated via Mobile OTP as ${selectedRoleForLogin}!`);
+                              }
+                            } catch (e: any) {
+                              setAuthError(getAuthErrorMessage(e));
+                            } finally {
+                              setIsVerifyingOtp(false);
+                            }
+                          }}
+                          className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2"
+                        >
+                          {isVerifyingOtp ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                          Verify & Sign In as {selectedRoleForLogin}
+                        </button>
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Email Address</label>
-                        <input
-                          type="email"
-                          placeholder="alex.mercer@gmail.com"
-                          value={authEmail}
-                          onChange={(e) => setAuthEmail(e.target.value)}
-                          className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-terracotta transition-all font-medium"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Password (min 6 chars)</label>
-                        <input
-                          type="password"
-                          placeholder="••••••••"
-                          value={authPassword}
-                          onChange={(e) => setAuthPassword(e.target.value)}
-                          className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-terracotta transition-all font-medium"
-                          required
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={isAuthenticating}
-                        className="w-full h-12 bg-[#1A1D1F] hover:bg-black text-white rounded-lg font-bold flex items-center justify-center gap-3 transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        {isAuthenticating ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Account"}
-                      </button>
-                    </form>
-                  )}
+                    )}
+                  </div>
+                )}
+
+                {/* METHOD 2: GOOGLE SIGN-IN / GUEST */}
+                {authTab === 'quick' && (
+                  <div className="space-y-4">
+                    <button
+                      disabled={isAuthenticating}
+                      onClick={async () => {
+                        setIsAuthenticating(true);
+                        setAuthError(null);
+                        try {
+                          const user = await signInWithGoogle();
+                          if (user) {
+                            setUserRole(selectedRoleForLogin);
+                            localStorage.setItem('nestdirect_user_role_v5', selectedRoleForLogin);
+                            localStorage.setItem('nestdirect_onboarding_v4_done', 'true');
+                            setOnboardingCompleted(true);
+                            showToast(`Welcome ${user.displayName} (${selectedRoleForLogin})`);
+                          }
+                        } catch (error: any) {
+                          setAuthError(getAuthErrorMessage(error));
+                        } finally {
+                          setIsAuthenticating(false);
+                        }
+                      }}
+                      className="w-full py-3 bg-white hover:bg-slate-100 text-slate-950 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-3 transition-all cursor-pointer shadow-md"
+                    >
+                      {isAuthenticating ? <Loader2 className="w-4 h-4 animate-spin" /> : <User className="w-4 h-4 text-amber-500" />}
+                      Continue with Google
+                    </button>
+
+                    <button
+                      disabled={isAuthenticating}
+                      onClick={async () => {
+                        setIsAuthenticating(true);
+                        setAuthError(null);
+                        try {
+                          const user = await signInGuestUser();
+                          if (user) {
+                            setUserRole(selectedRoleForLogin);
+                            localStorage.setItem('nestdirect_user_role_v5', selectedRoleForLogin);
+                            localStorage.setItem('nestdirect_onboarding_v4_done', 'true');
+                            setOnboardingCompleted(true);
+                            showToast(`Instant Guest Access as ${selectedRoleForLogin}`);
+                          }
+                        } catch (error: any) {
+                          setAuthError(getAuthErrorMessage(error));
+                        } finally {
+                          setIsAuthenticating(false);
+                        }
+                      }}
+                      className="w-full py-3 bg-slate-950 hover:bg-slate-800 text-slate-200 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-3 transition-all border border-slate-800 cursor-pointer"
+                    >
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      Instant Guest Access (One-Click)
+                    </button>
+                  </div>
+                )}
+
+                {/* METHOD 3: EMAIL + PASSWORD */}
+                {authTab === 'signin' && (
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!authEmail || !authPassword) {
+                      setAuthError("Please enter email and password.");
+                      return;
+                    }
+                    setIsAuthenticating(true);
+                    setAuthError(null);
+                    try {
+                      const user = await signInWithEmail(authEmail, authPassword);
+                      if (user) {
+                        setUserRole(selectedRoleForLogin);
+                        localStorage.setItem('nestdirect_user_role_v5', selectedRoleForLogin);
+                        localStorage.setItem('nestdirect_onboarding_v4_done', 'true');
+                        setOnboardingCompleted(true);
+                        showToast(`Signed in as ${selectedRoleForLogin}`);
+                      }
+                    } catch (err: any) {
+                      setAuthError(getAuthErrorMessage(err));
+                    } finally {
+                      setIsAuthenticating(false);
+                    }
+                  }} className="space-y-3">
+                    <input
+                      type="email"
+                      placeholder="email@example.com"
+                      value={authEmail}
+                      onChange={(e) => setAuthEmail(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                    />
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isAuthenticating}
+                      className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                    >
+                      Sign In as {selectedRoleForLogin}
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              {/* 🛡️ SUBTLE BOTTOM LINK FOR ADMIN PORTAL */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAdminModalOpen(true)}
+                  className="text-xs text-slate-500 hover:text-indigo-400 font-extrabold uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-2 mx-auto hover:underline"
+                >
+                  <Shield className="w-4 h-4 text-indigo-400" />
+                  Admin Portal → Admin Sign In
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 🛡️ ADMIN SIGN-IN MODAL */}
+      <AnimatePresence>
+        {isAdminModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[110] flex items-center justify-center p-4"
+          >
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-6 text-left shadow-2xl relative">
+              <button
+                onClick={() => setIsAdminModalOpen(false)}
+                className="absolute top-5 right-5 text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-500/10 rounded-xl border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white uppercase tracking-tight font-display">Admin Portal Sign In</h3>
+                  <p className="text-[10px] text-slate-400">NestDirect Super Administrator Access</p>
+                </div>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  // Authenticate Admin Access (Demo or Verified)
+                  setUserRole('ADMIN');
+                  localStorage.setItem('nestdirect_user_role_v5', 'ADMIN');
+                  localStorage.setItem('nestdirect_onboarding_v4_done', 'true');
+                  setOnboardingCompleted(true);
+                  setWebActiveSection('admin');
+                  setIsAdminModalOpen(false);
+                  showToast("🛡️ Welcome to NestDirect Admin Portal!");
+                }}
+                className="space-y-4"
+              >
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Admin Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
+                  />
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 flex items-center gap-8">
-                  <div>
-                    <p className="text-xl font-bold font-mono text-slate-700">1.2k+</p>
-                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Properties</p>
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold font-mono text-slate-700">₹10M+</p>
-                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Saved in Fees</p>
-                  </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
+                  />
                 </div>
-              </motion.div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400">2FA Security PIN</label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    placeholder="7600"
+                    value={admin2FA}
+                    onChange={(e) => setAdmin2FA(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-center text-base font-mono text-indigo-400 tracking-widest focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-lg shadow-indigo-600/20"
+                >
+                  Authenticate & Open Admin Portal
+                </button>
+              </form>
             </div>
           </motion.div>
         )}
@@ -1205,10 +1336,70 @@ export default function App() {
                 <Plus className="w-4 h-4 text-brass" strokeWidth={2} />
                 Add Unit
               </button>
+
+              {/* 🛡️ ADMIN QUICK LINK */}
+              <button
+                onClick={() => {
+                  if (userRole === 'ADMIN') {
+                    setWebActiveSection('admin');
+                  } else {
+                    setIsAdminModalOpen(true);
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-xs uppercase tracking-wider transition-all cursor-pointer border ${
+                  userRole === 'ADMIN' && webActiveSection === 'admin'
+                    ? 'bg-purple-600 text-white border-purple-500 shadow-lg shadow-purple-500/20'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
+                }`}
+              >
+                <Shield className="w-3.5 h-3.5 text-purple-600" />
+                Admin Portal
+              </button>
             </nav>
           </div>
 
           <div className="flex items-center gap-3">
+            {/* 🏷️ ACTIVE ROLE BADGE & SWITCHER */}
+            <div className="hidden lg:flex items-center gap-1 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-full">
+              <span className="text-[9px] font-black uppercase text-slate-400 mr-1">Role:</span>
+              <button
+                onClick={() => {
+                  setUserRole('OWNER');
+                  localStorage.setItem('nestdirect_user_role_v5', 'OWNER');
+                  setWebActiveSection('owner');
+                  showToast("Switched to 🏠 Property Owner Role!");
+                }}
+                className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase transition-all cursor-pointer ${
+                  userRole === 'OWNER' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                🏠 Owner
+              </button>
+              <button
+                onClick={() => {
+                  setUserRole('SEEKER');
+                  localStorage.setItem('nestdirect_user_role_v5', 'SEEKER');
+                  setWebActiveSection('browse');
+                  showToast("Switched to 🔍 Tenant / Buyer (Seeker) Role!");
+                }}
+                className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase transition-all cursor-pointer ${
+                  userRole === 'SEEKER' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                🔍 Seeker
+              </button>
+              <button
+                onClick={() => {
+                  setIsAdminModalOpen(true);
+                }}
+                className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase transition-all cursor-pointer ${
+                  userRole === 'ADMIN' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                🛡️ Admin
+              </button>
+            </div>
+
             {currentUser ? (
               <div className="flex items-center gap-3 pl-4 border-l border-stone-200">
                 <button
@@ -1238,7 +1429,9 @@ export default function App() {
 
                 <div className="text-right hidden sm:block">
                   <p className="text-xs font-bold leading-none text-stone-800">{currentUser.displayName?.split(' ')[0]}</p>
-                  <p className="text-[9px] text-brass font-extrabold uppercase tracking-widest mt-1">Verified Tenant</p>
+                  <p className="text-[9px] text-brass font-extrabold uppercase tracking-widest mt-1">
+                    {userRole === 'OWNER' ? 'Verified Owner' : userRole === 'ADMIN' ? 'Super Admin' : 'Verified Seeker'}
+                  </p>
                 </div>
                 <img src={currentUser.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150'} className="w-9 h-9 rounded-full border-2 border-white shadow-md object-cover" alt="" />
                 <button 
@@ -1259,12 +1452,12 @@ export default function App() {
               <button 
                 onClick={() => {
                   setOnboardingCompleted(false);
-                  setAuthTab('quick');
+                  setAuthTab('otp');
                   setAuthError(null);
                 }}
                 className="bg-ink hover:bg-ink/90 text-white px-5 py-2 rounded-sm font-bold text-xs uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
               >
-                Sign In
+                Sign In / Role
               </button>
             )}
           </div>
@@ -1272,6 +1465,16 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-12" id="web-dashboard-layout">
+        {/* 🛡️ ADMIN PORTAL COMPONENT VIEW */}
+        {webActiveSection === 'admin' && (
+          <AdminPortal
+            onClose={() => setWebActiveSection('browse')}
+            onSelectProperty={(id) => {
+              setSelectedPropertyId(id);
+              setWebActiveSection('browse');
+            }}
+          />
+        )}
         {webActiveSection === 'browse' && (
           <div className="space-y-12 animate-fadeIn">
             {/* HERO SECTION */}
