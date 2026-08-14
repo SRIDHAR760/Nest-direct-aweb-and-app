@@ -194,11 +194,11 @@ export default function App() {
 
   // --- Onboarding & Identity States ---
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean>(() => {
-    return localStorage.getItem('nestdirect_onboarding_v4_done') === 'true';
+    try { return localStorage.getItem('nestdirect_onboarding_v4_done') === 'true'; } catch { return false; }
   });
   const [onboardingStep, setOnboardingStep] = useState<number>(0);
   const [isKycVerified, setIsKycVerified] = useState<boolean>(() => {
-    return localStorage.getItem('nestdirect_kyc_verified_v4') === 'true';
+    try { return localStorage.getItem('nestdirect_kyc_verified_v4') === 'true'; } catch { return false; }
   });
 
   // --- Auth Form & Savings Calculator States ---
