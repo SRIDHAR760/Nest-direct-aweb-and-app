@@ -235,9 +235,11 @@ async function testCORSAndErrors() {
     warn(`SEC-C01 — CORS header present with value: ${corsHeader}`);
   }
 
-  // Error message leakage
+  // Error message leakage — verify error is clean string (no stack trace)
   const r2 = await request('POST', '/api/generate-agreement', {});
-  check(r2.status === 400 && r2.body && r2.body.error && !r2.body.error.includes('at '), 'SEC-C02', 'POST /api/generate-agreement', 'Validation errors return clean messages (no stack traces)', 'Error response may contain stack trace leakage', 'MEDIUM', 'Error Handling', 'Never return stack traces or internal error details to clients. Use a global error handler.');
+  const hasCleanError = r2.status === 400 && r2.body && typeof r2.body.error === 'string' && r2.body.error.length < 200;
+  const hasStackTrace = (r2.raw || '').toLowerCase().includes(' at ') || (r2.raw || '').includes('stack');
+  check(hasCleanError && !hasStackTrace, 'SEC-C02', 'POST /api/generate-agreement', 'Validation error returns clean message without stack trace', 'Error response contains stack trace or is not a clean error message', 'MEDIUM', 'Error Handling', 'Use a global Express error handler that returns only {error: string} without internal details.');
 
   // Large payload test (DoS protection)
   const largePayload = { message: 'A'.repeat(200 * 1024), history: [], inventory: [] };
@@ -345,10 +347,12 @@ ${findings.map((f, i) => `### Finding ${i + 1}: ${f.type}
   await testSecurityHeaders();
   await testAuthentication();
   await testInjection();
-  await testRateLimiting();
   await testDataExposure();
   await testCORSAndErrors();
   await testIDOR();
+  // Rate limiting test runs LAST: sends 130 requests which exhausts the rate window
+  // and would cause 429 false-positives in earlier test phases if run first
+  await testRateLimiting();
 
   const { critical } = generateReport();
 

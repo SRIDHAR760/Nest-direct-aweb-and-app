@@ -1,0 +1,107 @@
+[
+  {
+    "id": "prop-1",
+    "title": "Dream Penthouse",
+    "city": "Nungambakkam",
+    "price": 35000,
+    "deposit": 100000,
+    "type": "2 BHK",
+    "address": "Khadder Nawaz Khan Rd, Nungambakkam",
+    "ownerName": "Sridhar",
+    "ownerEmail": "owner@nestdirect.com",
+    "status": "available",
+    "bedrooms": 2,
+    "bathrooms": 2,
+    "area": 950,
+    "photos": [
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=800"
+    ],
+    "lat": 13.0604,
+    "lng": 80.2496,
+    "safetyScore": 96
+  },
+  {
+    "id": "prop-2",
+    "title": "Vastu Beach Villa",
+    "city": "Adyar",
+    "price": 65000,
+    "deposit": 200000,
+    "type": "3 BHK",
+    "address": "Gandhi Nagar, Adyar",
+    "ownerName": "Ramesh K.",
+    "ownerEmail": "ramesh@nestdirect.com",
+    "status": "available",
+    "bedrooms": 3,
+    "bathrooms": 3,
+    "area": 1450,
+    "photos": [
+      "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=800"
+    ],
+    "lat": 13.0012,
+    "lng": 80.2565,
+    "safetyScore": 98
+  },
+  {
+    "id": "prop-3",
+    "title": "Smart Studio",
+    "city": "OMR",
+    "price": 18000,
+    "deposit": 50000,
+    "type": "Studio",
+    "address": "Rajiv Gandhi Salai (OMR), Perungudi",
+    "ownerName": "Priya M.",
+    "ownerEmail": "priya@nestdirect.com",
+    "status": "available",
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "area": 500,
+    "photos": [
+      "https://images.unsplash.com/photo-1536376072261-38c75010e6c9?auto=format&fit=crop&q=80&w=800"
+    ],
+    "lat": 12.9698,
+    "lng": 80.2457,
+    "safetyScore": 92
+  },
+  {
+    "id": "prop-4",
+    "title": "Heritage Haven",
+    "city": "Mylapore",
+    "price": 25000,
+    "deposit": 80000,
+    "type": "1 BHK",
+    "address": "Luz Church Road, Mylapore",
+    "ownerName": "Ananth V.",
+    "ownerEmail": "ananth@nestdirect.com",
+    "status": "available",
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "area": 650,
+    "photos": [
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800"
+    ],
+    "lat": 13.0339,
+    "lng": 80.2696,
+    "safetyScore": 94
+  },
+  {
+    "id": "prop-5",
+    "title": "Waterfront Loft",
+    "city": "Adyar",
+    "price": 45000,
+    "deposit": 150000,
+    "type": "2 BHK",
+    "address": "Elliot Beach Promenade, Besant Nagar",
+    "ownerName": "Lakshmi N.",
+    "ownerEmail": "lakshmi@nestdirect.com",
+    "status": "available",
+    "bedrooms": 2,
+    "bathrooms": 2,
+    "area": 1100,
+    "photos": [
+      "https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&q=80&w=800"
+    ],
+    "lat": 12.9998,
+    "lng": 80.268,
+    "safetyScore": 95
+  }
+]

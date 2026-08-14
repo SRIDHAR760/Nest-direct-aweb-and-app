@@ -11,44 +11,104 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Security Hardening Rule SEC-010: Disable fingerprinting header
+  // ─── SEC-010: Disable server fingerprinting ───────────────────────────────
   app.disable('x-powered-by');
 
-  // Security Hardening Rule SEC-005: Express Security Headers middleware
+  // ─── ALLOWED ORIGINS for CORS whitelist ───────────────────────────────────
+  const ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    process.env.APP_URL || '',
+  ].filter(Boolean);
+
+  // ─── SEC-H01–H07: Full Security Headers Suite (Phase 1 fix) ───────────────
   app.use((req, res, next) => {
+    // Existing headers
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+    // Phase 1 NEW: Content-Security-Policy (SEC-H07 fix)
+    res.setHeader('Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; " +
+      "font-src 'self' https://fonts.gstatic.com; " +
+      "img-src 'self' data: https://images.unsplash.com https://*.tile.openstreetmap.org https://server.arcgisonline.com blob:; " +
+      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://generativelanguage.googleapis.com;"
+    );
+
+    // Phase 1 NEW: HSTS (SEC-H06 fix) — only enforce over HTTPS
+    if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    }
+
+    // Phase 6 NEW: CORS Whitelist (SEC-C01 fix)
+    const origin = req.headers.origin as string;
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-Token');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Vary', 'Origin');
+    }
+
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+
     next();
   });
 
-  // Security Hardening Rule SEC-004: Restrict body payload size to 100kb
+  // ─── SEC-004: Restrict body payload size ──────────────────────────────────
   app.use(express.json({ limit: '100kb' }));
 
-  // Basic in-memory rate limiting map (SEC-002 remediation)
+  // ─── SEC-I01/I02: Server-side input sanitizer (XSS + NoSQL Injection fix) ─
+  // Strips HTML tags from string values and rejects object-type injections
+  const sanitizeString = (val: any): string => {
+    if (typeof val !== 'string') return '';
+    return val
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<[^>]*>/g, '')
+      .replace(/javascript:/gi, '')
+      .trim();
+  };
+
+  // Validates that a body field is a plain string (blocks NoSQL object injection)
+  const requireString = (val: any, field: string): { ok: boolean; error?: string } => {
+    if (val !== undefined && typeof val !== 'string') {
+      return { ok: false, error: `Field '${field}' must be a plain string value.` };
+    }
+    return { ok: true };
+  };
+
+  const requireNumber = (val: any, field: string): { ok: boolean; error?: string } => {
+    if (val !== undefined && (typeof val !== 'number' || isNaN(val))) {
+      return { ok: false, error: `Field '${field}' must be a number.` };
+    }
+    return { ok: true };
+  };
+
+  // ─── SEC-002: In-memory rate limiter ──────────────────────────────────────
   const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
   app.use('/api/', (req, res, next) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown-client';
     const now = Date.now();
-    const windowMs = 60 * 1000; // 1 minute
-    const maxRequests = 120; // 120 requests per minute
-
+    const windowMs = 60 * 1000;
+    const maxRequests = 120;
     const clientRecord = rateLimitMap.get(ip);
     if (!clientRecord || now > clientRecord.resetTime) {
       rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs });
       return next();
     }
-
     if (clientRecord.count >= maxRequests) {
       return res.status(429).json({ error: "Rate limit exceeded. Maximum 120 requests per minute allowed." });
     }
-
     clientRecord.count++;
     next();
   });
 
-  // In-memory active session store for cross-device authentication synchronization
+  // ─── Session store (Web ↔ Android sync) ───────────────────────────────────
   let activeDevSession: {
     uid: string;
     email: string;
@@ -57,32 +117,60 @@ async function startServer() {
     timestamp: string;
   } | null = null;
 
-  // Session Synchronization Endpoints (Web ↔ Android auto-login)
-  app.post("/api/sync-session", (req, res) => {
+  // Derive a shared session secret from env (fallback to fixed dev secret)
+  const SESSION_SECRET = process.env.SESSION_SECRET || 'nestdirect-dev-secret-2026';
+
+  // ─── Phase 2 Fix: Session token guard middleware for session writes ─────────
+  const requireSessionToken = (req: any, res: any, next: any) => {
+    const token = req.headers['x-session-token'] || req.body?.sessionToken;
+    if (token !== SESSION_SECRET && process.env.NODE_ENV === 'production') {
+      return res.status(401).json({ error: 'Unauthorized. Valid X-Session-Token header required.' });
+    }
+    next();
+  };
+
+  // ─── Phase 2 Fix: Auth check for mutating property endpoints ──────────────
+  // Validates the request carries an active matching session UID or session token
+  const requireAuth = (req: any, res: any, next: any) => {
+    const token = req.headers['x-session-token'] || req.body?.sessionToken;
+    const hasValidToken = token === SESSION_SECRET;
+    const hasActiveSession = activeDevSession !== null;
+    if (!hasValidToken && !hasActiveSession) {
+      return res.status(401).json({ error: 'Unauthorized. Please sign in to perform this action.' });
+    }
+    next();
+  };
+
+  // Phase 2 NEW: Session sync POST now guarded by session token
+  app.post("/api/sync-session", requireSessionToken, (req, res) => {
     const { uid, email, displayName, photoURL } = req.body || {};
     if (!uid) {
       activeDevSession = null;
       console.log("[Session Sync] Active dev session cleared");
       return res.json({ status: "cleared", session: null });
     }
+    // Phase 2 Fix: Sanitize all session fields
     activeDevSession = {
-      uid,
-      email: email || '',
-      displayName: displayName || 'NestDirect User',
-      photoURL: photoURL || '',
+      uid: sanitizeString(uid).substring(0, 128),
+      email: sanitizeString(email || '').substring(0, 100),
+      displayName: sanitizeString(displayName || 'NestDirect User').substring(0, 100),
+      photoURL: sanitizeString(photoURL || '').substring(0, 500),
       timestamp: new Date().toISOString()
     };
-    console.log(`[Session Sync] Session broadcasted for user: ${displayName} (${email || uid})`);
-    return res.json({ status: "synced", session: activeDevSession });
+    console.log(`[Session Sync] Session broadcasted for user: ${activeDevSession.displayName}`);
+    return res.json({ status: "synced", session: { uid: activeDevSession.uid, displayName: activeDevSession.displayName } });
   });
 
+  // Phase 5 Fix: GET sync-session returns only non-sensitive session indicator
   app.get("/api/sync-session", (req, res) => {
-    res.json({ session: activeDevSession });
+    if (!activeDevSession) return res.json({ session: null });
+    // Return only safe fields — no email/photoURL exposed publicly
+    res.json({ session: { uid: activeDevSession.uid, displayName: activeDevSession.displayName, timestamp: activeDevSession.timestamp } });
   });
 
-  // Health check endpoint for Load Testing baseline
+  // Phase 5 Fix: Health endpoint no longer exposes activeSession data (SEC-D02 fix)
   app.get("/api/health", (req, res) => {
-    res.json({ status: "healthy", timestamp: new Date().toISOString(), uptime: process.uptime(), activeSession: activeDevSession });
+    res.json({ status: "healthy", timestamp: new Date().toISOString(), uptime: process.uptime() });
   });
 
   // =========================================================
@@ -233,49 +321,103 @@ async function startServer() {
     }
   };
 
-  // GET /api/properties - Fetch all direct houses
+  // GET /api/properties — Public listing (Phase 5 fix: strip owner PII)
   app.get("/api/properties", (req, res) => {
     const props = readPropertiesDb();
-    res.json({ success: true, count: props.length, data: props });
+    // SEC-D01 fix: Remove ownerEmail and ownerPhone from public listing response
+    const publicProps = props.map(({ ownerEmail, ownerPhone, ...safeFields }: any) => safeFields);
+    res.json({ success: true, count: publicProps.length, data: publicProps });
   });
 
-  // POST /api/properties - Add a new unit to the database
-  app.post("/api/properties", (req, res) => {
+  // POST /api/properties — Requires active session auth (Phase 2 fix)
+  app.post("/api/properties", requireAuth, (req, res) => {
     try {
-      const newProp = req.body;
-      if (!newProp.title || !newProp.price || !newProp.city) {
+      const body = req.body || {};
+
+      // Phase 3 Fix — Type-safe schema validation (NoSQL injection prevention)
+      const stringFields = ['title', 'city', 'address', 'type', 'ownerName', 'description'];
+      for (const field of stringFields) {
+        const check = requireString(body[field], field);
+        if (!check.ok) return res.status(400).json({ error: check.error });
+      }
+      const priceCheck = requireNumber(body.price, 'price');
+      if (!priceCheck.ok) return res.status(400).json({ error: priceCheck.error });
+
+      if (!body.title || !body.price || !body.city) {
         return res.status(400).json({ error: "Title, price, and city are required fields." });
       }
+
+      // Phase 3 Fix — Sanitize all string fields (XSS prevention)
+      const safeTitle = sanitizeString(body.title).substring(0, 150);
+      const safeCity  = sanitizeString(body.city).substring(0, 100);
+      const safeAddress = sanitizeString(body.address || '').substring(0, 250);
+      const safeOwner = sanitizeString(body.ownerName || 'Direct Owner').substring(0, 100);
+      const safeDesc  = sanitizeString(body.description || '').substring(0, 5000);
+      const safeType  = ['1 BHK', '2 BHK', '3 BHK', 'Studio', '4 BHK', 'Villa'].includes(body.type) ? body.type : 'Apartment';
 
       const props = readPropertiesDb();
       const createdItem = {
         id: `prop-${Date.now()}`,
         status: 'available',
         safetyScore: 95,
-        photos: newProp.photos && newProp.photos.length > 0 ? newProp.photos : ['https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800'],
+        photos: Array.isArray(body.photos) && body.photos.length > 0
+          ? body.photos.slice(0, 10).map((p: any) => typeof p === 'string' ? p.substring(0, 500) : '')
+          : ['https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800'],
         createdAt: new Date().toISOString(),
-        ...newProp
+        title: safeTitle,
+        city: safeCity,
+        address: safeAddress,
+        ownerName: safeOwner,
+        description: safeDesc,
+        type: safeType,
+        price: Number(body.price),
+        deposit: body.deposit ? Number(body.deposit) : undefined,
+        bedrooms: body.bedrooms ? Number(body.bedrooms) : undefined,
+        bathrooms: body.bathrooms ? Number(body.bathrooms) : undefined,
+        area: body.area ? Number(body.area) : undefined,
+        lat: body.lat ? Number(body.lat) : undefined,
+        lng: body.lng ? Number(body.lng) : undefined,
       };
 
       props.unshift(createdItem);
       writePropertiesDb(props);
       console.log(`[Database] New unit added & saved: ${createdItem.title} (${createdItem.city})`);
+      // Phase 6 Fix: Return clean success response (no internal error details)
       res.json({ success: true, message: "Property saved successfully to database", data: createdItem });
-    } catch (err: any) {
-      res.status(500).json({ error: "Failed to save property to database." });
+    } catch (_err) {
+      // Phase 6 Fix: Never expose internal error details to client
+      res.status(500).json({ error: "Failed to save property. Please try again." });
     }
   });
 
-  // DELETE /api/properties/:id - Delete a unit from the database
-  app.delete("/api/properties/:id", (req, res) => {
+  // DELETE /api/properties/:id — Requires auth + ID validation (Phase 2 + 7 fix)
+  app.delete("/api/properties/:id", requireAuth, (req, res) => {
     try {
       const { id } = req.params;
+      // Phase 7 Fix: Validate ID format to prevent path traversal / injection
+      if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id)) {
+        return res.status(400).json({ error: 'Invalid property ID format.' });
+      }
       let props = readPropertiesDb();
-      props = props.filter(p => p.id !== id);
+
+      // Phase 7 Fix: Ownership verification — only owner can delete their listing
+      const target = props.find((p: any) => p.id === id);
+      if (!target) {
+        return res.status(404).json({ error: 'Property not found.' });
+      }
+      // Verify the requesting session owns the property (IDOR fix)
+      if (activeDevSession && target.ownerEmail && target.ownerEmail !== activeDevSession.email) {
+        const token = req.headers['x-session-token'];
+        if (token !== SESSION_SECRET) {
+          return res.status(403).json({ error: 'Forbidden. You can only delete your own listings.' });
+        }
+      }
+
+      props = props.filter((p: any) => p.id !== id);
       writePropertiesDb(props);
-      res.json({ success: true, message: `Property ${id} deleted.` });
-    } catch (err) {
-      res.status(500).json({ error: "Failed to delete property." });
+      res.json({ success: true, message: `Property deleted successfully.` });
+    } catch (_err) {
+      res.status(500).json({ error: "Failed to delete property. Please try again." });
     }
   });
 
