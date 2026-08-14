@@ -1665,112 +1665,100 @@ export default function App() {
                   />
                 </div>
 
-                {/* 📍 Interactive Live Commute Radar & Work Hub Estimator */}
+                {/* 🛡️ Interactive Verified Landlord Direct Access & Quick Match Hub */}
                 <div className="bg-[#12141C] rounded-[2rem] p-6 text-white space-y-5 relative overflow-hidden shadow-2xl border border-white/10 text-left">
-                  {/* Ambient background blur */}
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+                  {/* Ambient background glow */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
 
                   {/* Header */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-amber-400/10 rounded-xl flex items-center justify-center text-amber-400 border border-amber-400/30">
-                        <Compass className="w-5 h-5" />
+                      <div className="w-10 h-10 bg-emerald-400/10 rounded-xl flex items-center justify-center text-emerald-400 border border-emerald-400/30">
+                        <Shield className="w-5 h-5" />
                       </div>
                       <div>
                         <h4 className="text-xs font-black uppercase tracking-tight text-white flex items-center gap-2">
-                          Commute Radar
-                          <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                          Owner Direct Hub
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                         </h4>
-                        <p className="text-[9px] text-white/40 font-extrabold uppercase tracking-widest">Chennai Work Hub Proximity</p>
+                        <p className="text-[9px] text-white/40 font-extrabold uppercase tracking-widest">Verified Landlord Directory</p>
                       </div>
                     </div>
-                    <span className="text-[9px] font-black text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-lg border border-amber-400/20 uppercase tracking-wider">Live Route</span>
+                    <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-lg border border-emerald-400/20 uppercase tracking-wider">Zero Broker</span>
                   </div>
 
-                  {/* Work Hub Selector Pills */}
+                  {/* Trust Indicators List */}
+                  <div className="space-y-2 bg-white/5 p-3 rounded-2xl border border-white/10">
+                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-200">
+                      <span className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        Government ID Verified
+                      </span>
+                      <span className="text-[9px] font-mono text-emerald-400 font-extrabold">100%</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-200">
+                      <span className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        Direct Landlord Chat
+                      </span>
+                      <span className="text-[9px] font-mono text-emerald-400 font-extrabold">Instant</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-200">
+                      <span className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        Zero Commission Fee
+                      </span>
+                      <span className="text-[9px] font-mono text-emerald-400 font-extrabold">Guaranteed</span>
+                    </div>
+                  </div>
+
+                  {/* Quick Category Filter Pills */}
                   <div className="space-y-2">
-                    <span className="text-[9px] font-extrabold text-white/50 uppercase tracking-widest block">Select Your Workplace</span>
+                    <span className="text-[9px] font-extrabold text-white/50 uppercase tracking-widest block">Quick Filter Listings</span>
                     <div className="grid grid-cols-2 gap-1.5">
-                      {workplacesData.map((wp) => {
-                        const activeWpId = typeof selectedWorkplace === 'string' ? selectedWorkplace : (selectedWorkplace as any)?.id;
-                        const isSelected = activeWpId === wp.id;
-                        return (
-                          <button
-                            key={wp.id}
-                            onClick={() => setSelectedWorkplace(wp.id as any)}
-                            className={`p-2 rounded-xl text-[9px] font-bold tracking-tight text-left transition-all flex items-center gap-1.5 cursor-pointer border ${
-                              isSelected
-                                ? 'bg-amber-400 text-slate-950 border-amber-400 font-extrabold shadow-md'
-                                : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
-                            }`}
-                          >
-                            <Building className={`w-3 h-3 flex-shrink-0 ${isSelected ? 'text-slate-950' : 'text-amber-400'}`} />
-                            <span className="truncate">{wp.name.split(' ')[0]} {wp.name.split(' ')[1] || ''}</span>
-                          </button>
-                        );
-                      })}
+                      <button
+                        onClick={() => { setSelectedType('apartment'); showToast('Filtered Apartment Listings'); }}
+                        className="p-2 bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 rounded-xl text-[9px] font-bold text-left transition-all flex items-center gap-2 cursor-pointer"
+                      >
+                        <Building className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Apartments</span>
+                      </button>
+                      <button
+                        onClick={() => { setSelectedType('house'); showToast('Filtered Independent Houses'); }}
+                        className="p-2 bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 rounded-xl text-[9px] font-bold text-left transition-all flex items-center gap-2 cursor-pointer"
+                      >
+                        <Home className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Independent Houses</span>
+                      </button>
+                      <button
+                        onClick={() => { setSelectedType('studio'); showToast('Filtered Studio Apartments'); }}
+                        className="p-2 bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 rounded-xl text-[9px] font-bold text-left transition-all flex items-center gap-2 cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                        <span>Studios</span>
+                      </button>
+                      <button
+                        onClick={() => { setSelectedType('room'); showToast('Filtered Room Listings'); }}
+                        className="p-2 bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 rounded-xl text-[9px] font-bold text-left transition-all flex items-center gap-2 cursor-pointer"
+                      >
+                        <UserCheck className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Private Rooms</span>
+                      </button>
                     </div>
                   </div>
 
-                  {/* Commute Time Cards for Current Selected City */}
-                  {(() => {
-                    const activeWpId = typeof selectedWorkplace === 'string' ? selectedWorkplace : (selectedWorkplace as any)?.id;
-                    const wpObj = workplacesData.find(w => w.id === activeWpId) || workplacesData[0];
-                    const currentCityKey = (selectedCity && selectedCity !== 'All') ? selectedCity : 'Adyar';
-                    const times = (wpObj.commuteTimes && wpObj.commuteTimes[currentCityKey]) || { metro: 15, auto: 18, bike: 10 };
-                    const shortWpName = wpObj.name.split(' ')[0];
-
-                    return (
-                      <div className="space-y-2 bg-white/5 p-3 rounded-2xl border border-white/10">
-                        <div className="flex items-center justify-between text-[9px] font-extrabold text-white/60 uppercase tracking-widest">
-                          <span>From <strong className="text-amber-400">{currentCityKey}</strong> to <strong className="text-white">{shortWpName}</strong></span>
-                          <span className="text-emerald-400 font-bold">Grade A+</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-center pt-1">
-                          <div className="p-2 bg-slate-900/80 rounded-xl border border-white/5">
-                            <Bike className="w-3.5 h-3.5 text-amber-400 mx-auto mb-1" />
-                            <span className="text-xs font-black text-white font-mono block">{times.bike}m</span>
-                            <span className="text-[8px] text-white/40 font-bold uppercase">Bike</span>
-                          </div>
-                          <div className="p-2 bg-slate-900/80 rounded-xl border border-white/5">
-                            <Bus className="w-3.5 h-3.5 text-emerald-400 mx-auto mb-1" />
-                            <span className="text-xs font-black text-white font-mono block">{times.metro}m</span>
-                            <span className="text-[8px] text-white/40 font-bold uppercase">Metro</span>
-                          </div>
-                          <div className="p-2 bg-slate-900/80 rounded-xl border border-white/5">
-                            <Car className="w-3.5 h-3.5 text-sky-400 mx-auto mb-1" />
-                            <span className="text-xs font-black text-white font-mono block">{times.auto}m</span>
-                            <span className="text-[8px] text-white/40 font-bold uppercase">Cab/Auto</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Commute Quick Action Filter */}
-                  {(() => {
-                    const activeWpId = typeof selectedWorkplace === 'string' ? selectedWorkplace : (selectedWorkplace as any)?.id;
-                    const wpObj = workplacesData.find(w => w.id === activeWpId) || workplacesData[0];
-                    return (
-                      <button
-                        onClick={() => {
-                          setSelectedCity(wpObj.zone);
-                          setSelectedMapNeighborhood(wpObj.zone);
-                          showToast(`Filtered listings near ${wpObj.name}`);
-                        }}
-                        className="w-full py-2.5 px-4 bg-white/10 hover:bg-white/20 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/15 flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <Compass className="w-3.5 h-3.5 text-amber-400" />
-                        Show Homes Near {wpObj.name.split(' ')[0]}
-                      </button>
-                    );
-                  })()}
+                  {/* Direct Chat Action Button */}
+                  <button
+                    onClick={() => setWebActiveSection('chats')}
+                    className="w-full py-2.5 px-4 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Open Landlord Direct Chat
+                  </button>
 
                   <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[9px] font-extrabold text-white/40 uppercase tracking-wider">
-                    <span>99.2% Transit Coverage</span>
-                    <span className="text-emerald-400 flex items-center gap-1">
-                      <Zap className="w-3 h-3" /> Live Route Sync
-                    </span>
+                    <span>Active Landlords: {properties.length}+</span>
+                    <span className="text-emerald-400 font-bold">100% Direct</span>
                   </div>
                 </div>
 
