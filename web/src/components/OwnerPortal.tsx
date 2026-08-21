@@ -156,72 +156,47 @@ export default function OwnerPortal({
     setCustomPhotos((prev) => prev.filter((_, idx) => idx !== indexToRem));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     if (!title || !address || !description) {
       setFormError('Please fill out all required fields.');
       return;
     }
-
-    // Identify non-blank URL inputs & validate them
     const nonBlankUrls = photoUrlInputs.map(url => url.trim()).filter(url => url.length > 0);
     const invalidUrls = nonBlankUrls.filter(url => !isValidImageUrl(url));
     if (invalidUrls.length > 0) {
       setFormError(`We found ${invalidUrls.length} invalid image link(s). Image URLs must start with http:// or https:// and have standard image extensions (.jpg, .png, .webp, etc.) or point to public images.`);
-      
-      const scrollContainer = document.getElementById('owner-scroll-container');
-      if (scrollContainer) {
-        scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+      document.getElementById('owner-scroll-container')?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-
     const amenities = amenitiesText.split(',').map(a => a.trim()).filter(a => a.length > 0);
     const priceNum = parseFloat(price) || 1000;
     const depositNum = parseFloat(deposit) || priceNum;
     const brokerSavings = Math.round(priceNum);
-
-    // If custom photos or URL inputs are provided, combine them; otherwise use preset
     const finalPhotos = [...customPhotos, ...nonBlankUrls];
     const propertyPhotos = finalPhotos.length > 0 ? finalPhotos : [photoPreset];
-
     const newProp: Property = {
       id: `my-prop-${Date.now()}`,
-      title,
-      description,
-      price: priceNum,
-      securityDeposit: depositNum,
-      type,
-      address,
-      city,
-      bedrooms: parseInt(bedrooms) || 1,
-      bathrooms: parseFloat(bathrooms) || 1,
-      areaSqFt: parseInt(area) || 500,
-      amenities,
-      photos: propertyPhotos,
+      title, description, price: priceNum, securityDeposit: depositNum, type, address, city,
+      bedrooms: parseInt(bedrooms) || 1, bathrooms: parseFloat(bathrooms) || 1,
+      areaSqFt: parseInt(area) || 500, amenities, photos: propertyPhotos,
       ownerName: ownerName ? `${ownerName} (You)` : 'Direct Owner (You)',
       ownerPhone: ownerPhone || '+91 99405 88223',
       ownerEmail: ownerEmail || 'owner@nestdirect-verified.in',
       ownerAvatar: currentUser?.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
-      ownerVerified: true,
-      createdAt: new Date().toISOString(),
-      brokerSavings
+      ownerVerified: false,
+      createdAt: new Date().toISOString(), brokerSavings
     };
-
-    onAddProperty(newProp);
-    savePropertyToFirestore(newProp);
-    setFormSuccess(true);
-    setTitle('');
-    setDescription('');
-    setAddress('');
-    setCustomPhotos([]);
-    setPhotoUrlInputs(['']);
-    
-    setTimeout(() => {
-      setFormSuccess(false);
-      setViewMode('dashboard');
-    }, 2500);
+    try {
+      await savePropertyToFirestore(newProp);
+      setFormSuccess(true);
+      setTitle(''); setDescription(''); setAddress(''); setCustomPhotos([]); setPhotoUrlInputs(['']);
+      setTimeout(() => { setFormSuccess(false); setViewMode('dashboard'); }, 2500);
+    } catch (error) {
+      console.error('[OWNER] Property submission failed:', error);
+      setFormError(error instanceof Error ? error.message : 'Unable to submit property. Firebase write failed.');
+    }
   };
 
   return (

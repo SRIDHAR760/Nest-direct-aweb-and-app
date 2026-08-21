@@ -12,7 +12,7 @@ import { AdminPortal } from './components/AdminPortal';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Firebase Integrations & auth listeners
-import { auth, db, signInWithGoogle, signInGuestUser, signInWithEmail, signUpWithEmail, logoutUser, syncFavoritesToCloud, OperationType, handleFirestoreError, getAuthErrorMessage } from './firebase';
+import { auth, db, signInWithGoogle, signInGuestUser, signInWithEmail, signUpWithEmail, logoutUser, syncFavoritesToCloud, savePropertyToFirestore, OperationType, handleFirestoreError, getAuthErrorMessage } from './firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { collection, onSnapshot, doc, setDoc, getDoc, query, where, or } from 'firebase/firestore';
 
@@ -103,10 +103,7 @@ export default function App() {
   const [cloudProfileReady, setCloudProfileReady] = useState<boolean>(false);
 
   // --- Real-Time Persistence State ---
-  const [properties, setProperties] = useState<Property[]>(() => {
-    const saved = localStorage.getItem('nestdirect_properties_chennai_v4');
-    return saved ? JSON.parse(saved) : initialProperties;
-  });
+  const [properties, setProperties] = useState<Property[]>([]);
 
   const [inquiries, setInquiries] = useState<DirectInquiry[]>(() => {
     const saved = localStorage.getItem('nestdirect_inquiries_chennai_v4');
@@ -368,37 +365,21 @@ export default function App() {
     };
   }, []);
 
-  // 🔄 2. Listen to Properties in Firestore (Seeds if Firestore is brand new)
+  // 🔄 2. Listen ONLY to approved, verified, published properties.
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'properties'), async (snapshot) => {
-      if (snapshot.empty) {
-        // State initializer: write standard starters to cloud
-        try {
-          for (const prop of initialProperties) {
-            await setDoc(doc(db, 'properties', prop.id), prop);
-          }
-        } catch (e) {
-          handleFirestoreError(e, OperationType.WRITE, 'properties');
-        }
-      } else {
-        const cloudProps: Property[] = [];
-        snapshot.forEach((doc) => {
-          cloudProps.push(doc.data() as Property);
-        });
-        cloudProps.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-        setProperties(cloudProps);
-      }
+    const approvedQuery = query(
+      collection(db, 'properties'),
+      where('status', '==', 'APPROVED'),
+      where('verificationStatus', '==', 'VERIFIED'),
+      where('isPublished', '==', true)
+    );
+    const unsubscribe = onSnapshot(approvedQuery, (snapshot) => {
+      const cloudProps = snapshot.docs.map(d => d.data() as Property);
+      cloudProps.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      setProperties(cloudProps);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'properties');
-      // Fallback: fetch from Express backend /api/properties REST API database
-      fetch('/api/properties')
-        .then(res => res.json())
-        .then(data => {
-          if (data?.data && Array.isArray(data.data) && data.data.length > 0) {
-            setProperties(data.data);
-          }
-        })
-        .catch(() => {});
+      console.error('[PUBLIC PROPERTIES] Approved listing query failed:', error);
+      setProperties([]);
     });
     return () => unsubscribe();
   }, []);
@@ -605,10 +586,9 @@ export default function App() {
   // --- Listing manipulations ---
   const handleAddProperty = async (newProperty: Property) => {
     try {
-      await setDoc(doc(db, 'properties', newProperty.id), newProperty);
-      showToast(`Property "${newProperty.title}" successfully listed directly by owner!`);
+      await savePropertyToFirestore(newProperty);
+      showToast(`Property "${newProperty.title}" submitted for admin verification.`);
     } catch (e) {
-      setProperties(prev => [newProperty, ...prev]);
       handleFirestoreError(e, OperationType.WRITE, `properties/${newProperty.id}`);
     }
   };
