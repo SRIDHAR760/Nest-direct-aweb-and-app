@@ -1,0 +1,21 @@
+name: Apply NestDirect property flow fix
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.event.head_commit.message != 'Fix owner property submission and approved listing flow [skip ci]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch property pipeline
+        run: python3 scripts/patch_property_flow.py
+      - name: Commit patched files
+        run: |
+          git config user.name "NestDirect Bot"
+          git config user.email "actions@github.com"
+          git add web/src/App.tsx web/src/components/OwnerPortal.tsx
+          git diff --cached --quiet || git commit -m "Fix owner property submission and approved listing flow [skip ci]"
+          git push
