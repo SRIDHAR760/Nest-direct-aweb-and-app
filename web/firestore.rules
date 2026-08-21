@@ -1,258 +1,126 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // =========================================================================
-    // 🛡️ GLOBAL SAFETY NET (First match block default-deny catch-all)
-    // =========================================================================
-    match /{document=**} {
-      allow read, write: if false;
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
     }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
 
-    // =========================================================================
-    // ⚙️ GLOBAL ACCESS PRIMITIVES / STANDARDIZED HELPERS
-    // =========================================================================
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    // =========================================================================
-    // 👤 USERS COLLECTION RULES
-    // =========================================================================
     match /users/{userId} {
-      allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidUser(incoming());
-      allow update: if isOwner(userId) && isValidUser(incoming()) && (
-        // Action: Update profile fields, bookmarks or verification tags
-        incoming().diff(existing()).affectedKeys().hasOnly(['favorites', 'onboardingCompleted', 'isKycVerified', 'displayName', 'photoURL'])
-      );
-      allow delete: if false; // Immortality clause for user registries
-    }
-
-    // Validation Blueprint for User Document
-    function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'displayName', 'email', 'createdAt'])
-        && data.keys().size() <= 9
-        && data.uid is string && data.uid.size() <= 128
-        && data.displayName is string && data.displayName.size() <= 100
-        && data.email is string && data.email.size() <= 100
-        && (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 1000))
-        && (data.role == null || (data.role is string && (data.role == 'OWNER' || data.role == 'SEEKER' || data.role == 'ADMIN')))
-        && (data.favorites == null || (data.favorites is list && data.favorites.size() <= 100))
-        && (data.onboardingCompleted == null || data.onboardingCompleted is bool)
-        && (data.isKycVerified == null || data.isKycVerified is bool)
-        && data.createdAt is string && data.createdAt.size() <= 100;
-    }
-
-    // =========================================================================
-    // 🏠 PROPERTIES COLLECTION RULES
-    // =========================================================================
-    match /properties/{propertyId} {
-      // Path variable validation
-      allow get: if isValidId(propertyId);
-      allow list: if true; // Public listing browsing
-
-      allow create: if isSignedIn() 
-        && isValidId(propertyId) 
-        && isValidProperty(incoming());
-
-      allow update: if isSignedIn() 
-        && isValidId(propertyId) 
-        && isValidProperty(incoming()) 
-        && (incoming().ownerEmail == request.auth.token.email || incoming().ownerName == request.auth.token.name)
-        && (
-          // Action: Edit details or toggle status
-          incoming().diff(existing()).affectedKeys().hasOnly([
-            'title', 'description', 'price', 'securityDeposit', 'type', 'address', 'city', 
-            'bedrooms', 'bathrooms', 'areaSqFt', 'amenities', 'photos', 
-            'ownerPhone', 'ownerAvatar', 'ownerVerified', 'brokerSavings', 'isFeatured', 'status'
-          ])
-        );
-
-      allow delete: if isSignedIn() 
-        && isValidId(propertyId) 
-        && (existing().ownerEmail == request.auth.token.email || existing().ownerName == request.auth.token.name);
-    }
-
-    // =========================================================================
-    // 📋 REGISTERED USERS COLLECTION — Signup Registry
-    // =========================================================================
-    match /registered_users/{userId} {
-      // Any signed-in user can read their OWN registry entry
-      allow get: if isOwner(userId);
-
-      // Only the signed-in user can create/update their own registry entry
-      allow create: if isOwner(userId) && isValidRegistryEntry(incoming());
-      allow update: if isOwner(userId) && isValidRegistryEntry(incoming());
-
-      // No one can delete registry entries (permanent signup record)
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && incoming().uid == request.auth.uid && incoming().role != 'ADMIN';
+      allow update: if isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['favorites','onboardingCompleted','isKycVerified','displayName','photoURL']);
       allow delete: if false;
-
-      // Admin read-all: only users whose email matches the owner email can list all
-      allow list: if isSignedIn()
-        && (request.auth.token.email == 'boycrazyboy230@gmail.com'
-            || request.auth.token.email == 'owner@nestdirect.com');
     }
 
-    // Validation Blueprint for Signup Registry Entry
-    function isValidRegistryEntry(data) {
-      return data.keys().hasAll(['uid', 'name', 'joinedAt'])
-        && data.uid is string && data.uid.size() <= 128
-        && data.name is string && data.name.size() <= 100
-        && data.joinedAt is string && data.joinedAt.size() <= 100
-        && (data.email == null || (data.email is string && data.email.size() <= 100))
-        && (data.provider == null || (data.provider is string && data.provider.size() <= 50))
-        && (data.role == null || (data.role is string && (data.role == 'OWNER' || data.role == 'SEEKER' || data.role == 'ADMIN')))
-        && (data.deviceType == null || (data.deviceType is string && data.deviceType.size() <= 20))
-        && (data.city == null || (data.city is string && data.city.size() <= 100))
-        && (data.isGuest == null || data.isGuest is bool);
+    match /registered_users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && incoming().uid == request.auth.uid && incoming().role != 'ADMIN';
+      allow update: if isOwner(userId) && incoming().uid == request.auth.uid && incoming().role != 'ADMIN';
+      allow delete: if false;
     }
 
+    // ================================================================
+    // PROPERTIES: owner creates PENDING; admin verifies; seekers see only published
+    // ================================================================
+    match /properties/{propertyId} {
+      // Admin can inspect every property. Public/seekers can only inspect published ones.
+      allow get: if isAdmin()
+        || (isSignedIn() && resource.data.ownerId == request.auth.uid)
+        || (resource.data.status == 'APPROVED' && resource.data.verificationStatus == 'VERIFIED' && resource.data.isPublished == true);
 
-    // Validation Blueprint for Properties
-    function isValidProperty(data) {
-      return data.keys().hasAll(['id', 'title', 'description', 'price', 'type', 'address', 'city', 'ownerName', 'createdAt'])
-        && data.keys().size() <= 23
-        && data.id is string && data.id.size() <= 128
-        && data.title is string && data.title.size() <= 150
-        && data.description is string && data.description.size() <= 5000
-        && (data.price is int || data.price is float) && data.price >= 0
-        && (data.securityDeposit == null || (data.securityDeposit is int || data.securityDeposit is float))
-        && data.type is string && (data.type == 'apartment' || data.type == 'house' || data.type == 'studio' || data.type == 'room')
-        && data.address is string && data.address.size() <= 250
-        && data.city is string && data.city.size() <= 100
-        && (data.bedrooms == null || data.bedrooms is int || data.bedrooms is float)
-        && (data.bathrooms == null || data.bathrooms is int || data.bathrooms is float)
-        && (data.areaSqFt == null || data.areaSqFt is int || data.areaSqFt is float)
-        && (data.amenities == null || (data.amenities is list && data.amenities.size() <= 50))
-        && (data.photos == null || (data.photos is list && data.photos.size() <= 20))
-        && data.ownerName is string && data.ownerName.size() <= 100
-        && (data.ownerPhone == null || (data.ownerPhone is string && data.ownerPhone.size() <= 30))
-        && (data.ownerEmail == null || (data.ownerEmail is string && data.ownerEmail.size() <= 100))
-        && (data.ownerAvatar == null || (data.ownerAvatar is string && data.ownerAvatar.size() <= 1000))
-        && (data.ownerVerified == null || data.ownerVerified is bool)
-        && (data.brokerSavings == null || (data.brokerSavings is int || data.brokerSavings is float))
-        && (data.isFeatured == null || data.isFeatured is bool)
-        && (data.status == null || (data.status is string && (data.status == 'available' || data.status == 'occupied')))
-        && data.createdAt is string && data.createdAt.size() <= 100;
+      // Query rules are not filters. Public queries must explicitly constrain these fields.
+      // Admin can query the complete collection.
+      allow list: if isAdmin()
+        || (isSignedIn() && resource.data.ownerId == request.auth.uid)
+        || (resource.data.status == 'APPROVED' && resource.data.verificationStatus == 'VERIFIED' && resource.data.isPublished == true);
+
+      // Owner submission: the client can NEVER create an approved/published listing.
+      allow create: if isSignedIn()
+        && isValidId(propertyId)
+        && incoming().ownerId == request.auth.uid
+        && incoming().status == 'PENDING'
+        && incoming().verificationStatus == 'PENDING'
+        && incoming().isPublished == false
+        && incoming().ownerVerified == false
+        && incoming().reviewedBy == null
+        && incoming().reviewedAt == null
+        && incoming().rejectionReason == null
+        && incoming().id == propertyId
+        && incoming().title is string
+        && incoming().description is string
+        && incoming().price is number
+        && incoming().type is string
+        && incoming().address is string
+        && incoming().city is string
+        && incoming().ownerName is string
+        && incoming().createdAt is string;
+
+      // Owner may edit normal details only while still pending/rejected. Moderation fields are immutable to owners.
+      allow update: if isSignedIn()
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().status == existing().status
+        && incoming().verificationStatus == existing().verificationStatus
+        && incoming().isPublished == existing().isPublished
+        && incoming().reviewedBy == existing().reviewedBy
+        && incoming().reviewedAt == existing().reviewedAt
+        && incoming().rejectionReason == existing().rejectionReason
+        && incoming().ownerVerified == existing().ownerVerified;
+
+      // Only an ADMIN can approve/reject/suspend/publish.
+      allow update: if isAdmin()
+        && incoming().ownerId == existing().ownerId
+        && incoming().id == existing().id
+        && incoming().status in ['PENDING','APPROVED','REJECTED','SUSPENDED']
+        && incoming().verificationStatus in ['PENDING','VERIFIED','REJECTED','SUSPENDED']
+        && incoming().isPublished is bool
+        && incoming().reviewedBy == request.auth.uid;
+
+      allow delete: if isAdmin() || (isSignedIn() && existing().ownerId == request.auth.uid && existing().status != 'APPROVED');
     }
 
-    // =========================================================================
-    // 📅 INQUIRIES (TOUR SCHEDULING) RULES
-    // =========================================================================
+    // ================================================================
+    // Existing inquiry/chat functionality
+    // ================================================================
     match /inquiries/{inquiryId} {
       allow get: if isSignedIn() && isValidId(inquiryId) && (
-        resource.data.tenantEmail == request.auth.token.email
-        || resource.data.ownerEmail == request.auth.token.email
-        || get(/databases/$(database)/documents/properties/$(resource.data.propertyId)).data.ownerEmail == request.auth.token.email
-        || get(/databases/$(database)/documents/properties/$(resource.data.propertyId)).data.ownerName == request.auth.token.name
+        resource.data.tenantEmail == request.auth.token.email ||
+        resource.data.ownerEmail == request.auth.token.email ||
+        isAdmin()
       );
-
-      // Require the query itself to be filtered to the requester's own email —
-      // do NOT allow open-ended listing of the whole collection.
-      allow list: if isSignedIn()
-        && request.query.limit <= 50
-        && (
-          request.query.where.tenantEmail == request.auth.token.email
-          || request.query.where.ownerEmail == request.auth.token.email
-        );
-
-      allow create: if isSignedIn() 
-        && isValidId(inquiryId) 
-        && isValidInquiry(incoming());
-
-      allow update: if isSignedIn() 
-        && isValidId(inquiryId) 
-        && isValidInquiry(incoming())
-        && (
-          // Action: Landlord approvals / updates
-          (incoming().diff(existing()).affectedKeys().hasOnly(['status'])) 
-          && (
-            existing().ownerEmail == request.auth.token.email
-            || get(/databases/$(database)/documents/properties/$(existing().propertyId)).data.ownerEmail == request.auth.token.email
-            || get(/databases/$(database)/documents/properties/$(existing().propertyId)).data.ownerName == request.auth.token.name
-          )
-        );
-
-      allow delete: if isSignedIn() 
-        && isValidId(inquiryId) 
-        && (resource.data.tenantEmail == request.auth.token.email);
+      allow list: if isSignedIn() && (isAdmin() ||
+        (request.query.limit <= 50 && (
+          request.query.where.tenantEmail == request.auth.token.email ||
+          request.query.where.ownerEmail == request.auth.token.email
+        )));
+      allow create: if isSignedIn() && isValidId(inquiryId);
+      allow update: if isSignedIn() && isValidId(inquiryId) &&
+        (isAdmin() || resource.data.ownerEmail == request.auth.token.email || resource.data.tenantEmail == request.auth.token.email);
+      allow delete: if isSignedIn() && resource.data.tenantEmail == request.auth.token.email;
     }
 
-    // Validation Blueprint for Tour Inquiries
-    function isValidInquiry(data) {
-      return data.keys().hasAll(['id', 'propertyId', 'tenantName', 'status', 'createdAt'])
-        && data.keys().size() <= 12
-        && data.id is string && data.id.size() <= 128
-        && data.propertyId is string && data.propertyId.size() <= 128
-        && data.tenantName is string && data.tenantName.size() <= 100
-        && (data.tenantEmail == null || (data.tenantEmail is string && data.tenantEmail.size() <= 100))
-        && (data.tenantPhone == null || (data.tenantPhone is string && data.tenantPhone.size() <= 30))
-        && (data.visitDate == null || (data.visitDate is string && data.visitDate.size() <= 50))
-        && (data.visitTime == null || (data.visitTime is string && data.visitTime.size() <= 50))
-        && (data.message == null || (data.message is string && data.message.size() <= 2000))
-        && data.status is string && (data.status == 'pending' || data.status == 'accepted' || data.status == 'declined')
-        && data.createdAt is string && data.createdAt.size() <= 100
-        && (data.ownerEmail == null || (data.ownerEmail is string && data.ownerEmail.size() <= 100))
-        && (data.userUid == null || (data.userUid is string && data.userUid.size() <= 128));
-    }
-
-    // =========================================================================
-    // 💬 CHAT MESSAGES RULES
-    // =========================================================================
     match /chat_messages/{messageId} {
       allow get: if isSignedIn() && isValidId(messageId) && (
-        resource.data.tenantEmail == request.auth.token.email
-        || resource.data.ownerEmail == request.auth.token.email
+        resource.data.tenantEmail == request.auth.token.email ||
+        resource.data.ownerEmail == request.auth.token.email ||
+        isAdmin()
       );
-
-      allow list: if isSignedIn()
-        && request.query.limit <= 50
-        && (
-          request.query.where.tenantEmail == request.auth.token.email
-          || request.query.where.ownerEmail == request.auth.token.email
-        );
-
-      allow create: if isSignedIn() 
-        && isValidId(messageId) 
-        && isValidChatMessage(incoming());
-
-      allow update: if isSignedIn() 
-        && isValidId(messageId) 
-        && isValidChatMessage(incoming())
-        && (incoming().diff(existing()).affectedKeys().hasOnly(['text', 'timestamp']));
-
-      allow delete: if false; // Archive preservation logic
+      allow list: if isSignedIn() && isAdmin();
+      allow create: if isSignedIn() && isValidId(messageId);
+      allow update: if isSignedIn() && isValidId(messageId) && (
+        resource.data.tenantEmail == request.auth.token.email || resource.data.ownerEmail == request.auth.token.email || isAdmin()
+      );
+      allow delete: if false;
     }
 
-    // Validation Blueprint for Private Dialogue Messages
-    function isValidChatMessage(data) {
-      return data.keys().hasAll(['id', 'propertyId', 'sender', 'text', 'timestamp'])
-        && data.keys().size() <= 8
-        && data.id is string && data.id.size() <= 128
-        && data.propertyId is string && data.propertyId.size() <= 128
-        && data.sender is string && (data.sender == 'tenant' || data.sender == 'owner')
-        && data.text is string && data.text.size() <= 5000
-        && data.timestamp is string && data.timestamp.size() <= 100
-        && (data.tenantEmail == null || (data.tenantEmail is string && data.tenantEmail.size() <= 100))
-        && (data.ownerEmail == null || (data.ownerEmail is string && data.ownerEmail.size() <= 100))
-        && (data.userUid == null || (data.userUid is string && data.userUid.size() <= 128));
-    }
+    // Everything not explicitly allowed above is denied.
+    match /{document=**} { allow read, write: if false; }
   }
 }
