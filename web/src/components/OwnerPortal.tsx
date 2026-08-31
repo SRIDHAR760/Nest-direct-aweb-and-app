@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Property, DirectInquiry, PropertyType } from '../types';
-import { savePropertyToFirestore } from '../firebase';
+import { savePropertyToFirestore, uploadPropertyPhoto } from '../firebase';
 import { 
   PlusCircle, LayoutDashboard, FileText, Check, X, 
   MapPin, CheckCircle, Home, Hammer, Calendar, 
@@ -159,40 +159,103 @@ export default function OwnerPortal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+
     if (!title || !address || !description) {
       setFormError('Please fill out all required fields.');
       return;
     }
+
+    const user = currentUser;
+    if (!user) {
+      setFormError('Please sign in as an Owner before submitting a property.');
+      return;
+    }
+
     const nonBlankUrls = photoUrlInputs.map(url => url.trim()).filter(url => url.length > 0);
     const invalidUrls = nonBlankUrls.filter(url => !isValidImageUrl(url));
     if (invalidUrls.length > 0) {
-      setFormError(`We found ${invalidUrls.length} invalid image link(s). Image URLs must start with http:// or https:// and have standard image extensions (.jpg, .png, .webp, etc.) or point to public images.`);
+      setFormError(`We found ${invalidUrls.length} invalid image link(s). Image URLs must start with http:// or https:// and have a supported image extension or trusted image host.`);
       document.getElementById('owner-scroll-container')?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+
     const amenities = amenitiesText.split(',').map(a => a.trim()).filter(a => a.length > 0);
     const priceNum = parseFloat(price) || 1000;
     const depositNum = parseFloat(deposit) || priceNum;
     const brokerSavings = Math.round(priceNum);
-    const finalPhotos = [...customPhotos, ...nonBlankUrls];
-    const propertyPhotos = finalPhotos.length > 0 ? finalPhotos : [photoPreset];
+    const propertyId = `my-prop-${Date.now()}`;
+
     const newProp: Property = {
-      id: `my-prop-${Date.now()}`,
-      title, description, price: priceNum, securityDeposit: depositNum, type, address, city,
-      bedrooms: parseInt(bedrooms) || 1, bathrooms: parseFloat(bathrooms) || 1,
-      areaSqFt: parseInt(area) || 500, amenities, photos: propertyPhotos,
+      id: propertyId,
+      title,
+      description,
+      price: priceNum,
+      securityDeposit: depositNum,
+      type,
+      address,
+      city,
+      bedrooms: parseInt(bedrooms) || 1,
+      bathrooms: parseFloat(bathrooms) || 1,
+      areaSqFt: parseInt(area) || 500,
+      amenities,
+      photos: [],
       ownerName: ownerName ? `${ownerName} (You)` : 'Direct Owner (You)',
       ownerPhone: ownerPhone || '+91 99405 88223',
-      ownerEmail: ownerEmail || 'owner@nestdirect-verified.in',
-      ownerAvatar: currentUser?.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
+      ownerEmail: ownerEmail || user.email || 'owner@nestdirect-verified.in',
+      ownerAvatar: user.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
       ownerVerified: false,
-      createdAt: new Date().toISOString(), brokerSavings
+      createdAt: new Date().toISOString(),
+      brokerSavings
     };
+
     try {
+      // IMPORTANT: never put image base64 data directly into Firestore.
+      // Upload each local image to Firebase Storage and store only its URL.
+      const uploadedPhotoUrls: string[] = [];
+      for (let i = 0; i < customPhotos.length; i++) {
+        const dataUrl = customPhotos[i];
+        if (!dataUrl.startsWith('data:')) continue;
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        if (!blob.type.startsWith('image/')) {
+          throw new Error(`Photo ${i + 1} is not a valid image.`);
+        }
+        if (blob.size > 5 * 1024 * 1024) {
+          throw new Error(`Photo ${i + 1} is larger than 5 MB. Please choose a smaller image.`);
+        }
+        const extension = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+        const file = new File([blob], `property-${propertyId}-${i + 1}.${extension}`, { type: blob.type });
+        const downloadUrl = await uploadPropertyPhoto(propertyId, file);
+        uploadedPhotoUrls.push(downloadUrl);
+      }
+
+      const externalPhotoUrls = nonBlankUrls.length > 0
+        ? nonBlankUrls
+        : (uploadedPhotoUrls.length === 0 ? [photoPreset] : []);
+
+      newProp.photos = [...uploadedPhotoUrls, ...externalPhotoUrls];
+
+      // This is the ONLY Firestore property write. It always creates PENDING,
+      // never APPROVED/PUBLISHED. AdminPortal's live listener will receive it.
       await savePropertyToFirestore(newProp);
+
+      console.log('[OWNER] Property submitted for admin review:', {
+        propertyId,
+        ownerId: user.uid,
+        photoCount: newProp.photos.length,
+        status: 'PENDING'
+      });
+
       setFormSuccess(true);
-      setTitle(''); setDescription(''); setAddress(''); setCustomPhotos([]); setPhotoUrlInputs(['']);
-      setTimeout(() => { setFormSuccess(false); setViewMode('dashboard'); }, 2500);
+      setTitle('');
+      setDescription('');
+      setAddress('');
+      setCustomPhotos([]);
+      setPhotoUrlInputs(['']);
+      setTimeout(() => {
+        setFormSuccess(false);
+        setViewMode('dashboard');
+      }, 2500);
     } catch (error) {
       console.error('[OWNER] Property submission failed:', error);
       setFormError(error instanceof Error ? error.message : 'Unable to submit property. Firebase write failed.');
