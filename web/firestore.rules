@@ -19,7 +19,7 @@ service cloud.firestore {
       return id is string
         && id.size() > 0
         && id.size() <= 128
-        && id.matches('^[a-zA-Z0-9_\\-]+$');
+        && id.matches('^[a-zA-Z0-9_-]+$');
     }
 
     match /users/{userId} {
@@ -46,14 +46,10 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ================================================================
-    // PROPERTIES
-    // OWNER -> PENDING -> ADMIN REVIEW -> APPROVED/REJECTED
-    // Only approved + verified + published properties are public.
-    // ================================================================
+    // PROPERTY MODERATION FLOW
+    // Owner creates only PENDING/unpublished.
+    // Admin alone can approve/reject/publish.
     match /properties/{propertyId} {
-      // Admin can read everything. Owners can read their own listings.
-      // Everyone else can only read verified published listings.
       allow get: if isAdmin()
         || (isSignedIn() && resource.data.ownerId == request.auth.uid)
         || (
@@ -62,9 +58,6 @@ service cloud.firestore {
           && resource.data.isPublished == true
         );
 
-      // Admin can list the entire moderation queue.
-      // Owners can list their own properties.
-      // Public/seekers can query only published verified properties.
       allow list: if isAdmin()
         || (isSignedIn() && resource.data.ownerId == request.auth.uid)
         || (
@@ -73,53 +66,19 @@ service cloud.firestore {
           && resource.data.isPublished == true
         );
 
-      // ------------------------------------------------------------
-      // OWNER CREATE
-      // This is deliberately permissive about optional property fields,
-      // while strictly locking all moderation fields to PENDING/unpublished.
-      // This MUST match savePropertyToFirestore() in firebase.ts.
-      // ------------------------------------------------------------
+      // Keep this rule intentionally simple so it exactly matches the
+      // client-side setDoc() submission and does not reject optional fields.
       allow create: if isSignedIn()
         && isValidId(propertyId)
-        && request.resource.data.keys().hasAll([
-          'id',
-          'title',
-          'description',
-          'price',
-          'type',
-          'address',
-          'city',
-          'ownerId',
-          'ownerName',
-          'createdAt',
-          'status',
-          'verificationStatus',
-          'isPublished',
-          'ownerVerified'
-        ])
         && request.resource.data.id == propertyId
         && request.resource.data.ownerId == request.auth.uid
-        && request.resource.data.title is string
-        && request.resource.data.description is string
-        && request.resource.data.price is number
-        && request.resource.data.type is string
-        && request.resource.data.address is string
-        && request.resource.data.city is string
-        && request.resource.data.ownerName is string
-        && request.resource.data.createdAt is string
         && request.resource.data.status == 'PENDING'
         && request.resource.data.verificationStatus == 'PENDING'
         && request.resource.data.isPublished == false
-        && request.resource.data.ownerVerified == false
-        && request.resource.data.get('reviewedBy', null) == null
-        && request.resource.data.get('reviewedAt', null) == null
-        && request.resource.data.get('rejectionReason', null) == null;
+        && request.resource.data.ownerVerified == false;
 
-      // ------------------------------------------------------------
-      // OWNER UPDATE
-      // Owner can edit only while PENDING or REJECTED.
-      // Owner can NEVER modify moderation fields.
-      // ------------------------------------------------------------
+      // Owners may edit their own pending/rejected listing details, but
+      // moderation state can never be changed by the owner.
       allow update: if isSignedIn()
         && resource.data.ownerId == request.auth.uid
         && resource.data.status in ['PENDING', 'REJECTED']
@@ -128,22 +87,19 @@ service cloud.firestore {
         && request.resource.data.verificationStatus == resource.data.verificationStatus
         && request.resource.data.isPublished == resource.data.isPublished
         && request.resource.data.ownerVerified == resource.data.ownerVerified
-        && request.resource.data.get('reviewedBy', null) == resource.data.get('reviewedBy', null)
-        && request.resource.data.get('reviewedAt', null) == resource.data.get('reviewedAt', null)
-        && request.resource.data.get('rejectionReason', null) == resource.data.get('rejectionReason', null);
+        && request.resource.data.reviewedBy == resource.data.reviewedBy
+        && request.resource.data.reviewedAt == resource.data.reviewedAt
+        && request.resource.data.rejectionReason == resource.data.rejectionReason;
 
-      // ------------------------------------------------------------
-      // ADMIN MODERATION
-      // Only ADMIN can change approval/rejection/publication state.
-      // ------------------------------------------------------------
+      // Admin controls the moderation transition.
       allow update: if isAdmin()
         && request.resource.data.ownerId == resource.data.ownerId
         && request.resource.data.id == resource.data.id
+        && request.resource.data.reviewedBy == request.auth.uid
         && request.resource.data.status in ['PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED']
         && request.resource.data.verificationStatus in ['PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED']
         && request.resource.data.isPublished is bool
-        && request.resource.data.ownerVerified is bool
-        && request.resource.data.reviewedBy == request.auth.uid;
+        && request.resource.data.ownerVerified is bool;
 
       allow delete: if isAdmin()
         || (
