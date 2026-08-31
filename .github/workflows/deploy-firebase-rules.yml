@@ -1,0 +1,48 @@
+name: Deploy NestDirect Firebase rules
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'web/firestore.rules'
+      - 'web/storage.rules'
+      - 'firebase.json'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Verify Firebase project configuration
+        run: |
+          test -f firebase.json
+          test -f web/firestore.rules
+          test -f web/storage.rules
+
+      - name: Deploy Firestore and Storage rules
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_NESTDIRECT_PROD }}
+        run: |
+          if [ -z "$GOOGLE_APPLICATION_CREDENTIALS_JSON" ]; then
+            echo "Missing GitHub secret FIREBASE_SERVICE_ACCOUNT_NESTDIRECT_PROD"
+            echo "Add a Firebase service-account JSON key as this repository secret, then rerun this workflow."
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-service-account.json"
+          firebase deploy --project nestdirect-prod --only firestore:rules,storage
+          rm -f "$RUNNER_TEMP/firebase-service-account.json"
