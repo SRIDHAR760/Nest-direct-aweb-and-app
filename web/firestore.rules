@@ -1,126 +1,192 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isSignedIn() { return request.auth != null; }
-    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
-    function isAdmin() {
-      return isSignedIn() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+    function isSignedIn() {
+      return request.auth != null;
     }
-    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
-    function incoming() { return request.resource.data; }
-    function existing() { return resource.data; }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+    }
+
+    function isValidId(id) {
+      return id is string
+        && id.size() > 0
+        && id.size() <= 128
+        && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && incoming().uid == request.auth.uid && incoming().role != 'ADMIN';
-      allow update: if isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['favorites','onboardingCompleted','isKycVerified','displayName','photoURL']);
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role in ['OWNER', 'SEEKER'];
+      allow update: if isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'favorites', 'onboardingCompleted', 'isKycVerified', 'displayName', 'photoURL'
+        ]);
       allow delete: if false;
     }
 
     match /registered_users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow create: if isOwner(userId) && incoming().uid == request.auth.uid && incoming().role != 'ADMIN';
-      allow update: if isOwner(userId) && incoming().uid == request.auth.uid && incoming().role != 'ADMIN';
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role in ['OWNER', 'SEEKER'];
+      allow update: if isOwner(userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role != 'ADMIN';
       allow delete: if false;
     }
 
     // ================================================================
-    // PROPERTIES: owner creates PENDING; admin verifies; seekers see only published
+    // PROPERTIES
+    // OWNER -> PENDING -> ADMIN REVIEW -> APPROVED/REJECTED
+    // Only approved + verified + published properties are public.
     // ================================================================
     match /properties/{propertyId} {
-      // Admin can inspect every property. Public/seekers can only inspect published ones.
+      // Admin can read everything. Owners can read their own listings.
+      // Everyone else can only read verified published listings.
       allow get: if isAdmin()
         || (isSignedIn() && resource.data.ownerId == request.auth.uid)
-        || (resource.data.status == 'APPROVED' && resource.data.verificationStatus == 'VERIFIED' && resource.data.isPublished == true);
+        || (
+          resource.data.status == 'APPROVED'
+          && resource.data.verificationStatus == 'VERIFIED'
+          && resource.data.isPublished == true
+        );
 
-      // Query rules are not filters. Public queries must explicitly constrain these fields.
-      // Admin can query the complete collection.
+      // Admin can list the entire moderation queue.
+      // Owners can list their own properties.
+      // Public/seekers can query only published verified properties.
       allow list: if isAdmin()
         || (isSignedIn() && resource.data.ownerId == request.auth.uid)
-        || (resource.data.status == 'APPROVED' && resource.data.verificationStatus == 'VERIFIED' && resource.data.isPublished == true);
+        || (
+          resource.data.status == 'APPROVED'
+          && resource.data.verificationStatus == 'VERIFIED'
+          && resource.data.isPublished == true
+        );
 
-      // Owner submission: the client can NEVER create an approved/published listing.
+      // ------------------------------------------------------------
+      // OWNER CREATE
+      // This is deliberately permissive about optional property fields,
+      // while strictly locking all moderation fields to PENDING/unpublished.
+      // This MUST match savePropertyToFirestore() in firebase.ts.
+      // ------------------------------------------------------------
       allow create: if isSignedIn()
         && isValidId(propertyId)
-        && incoming().ownerId == request.auth.uid
-        && incoming().status == 'PENDING'
-        && incoming().verificationStatus == 'PENDING'
-        && incoming().isPublished == false
-        && incoming().ownerVerified == false
-        && incoming().reviewedBy == null
-        && incoming().reviewedAt == null
-        && incoming().rejectionReason == null
-        && incoming().id == propertyId
-        && incoming().title is string
-        && incoming().description is string
-        && incoming().price is number
-        && incoming().type is string
-        && incoming().address is string
-        && incoming().city is string
-        && incoming().ownerName is string
-        && incoming().createdAt is string;
+        && request.resource.data.keys().hasAll([
+          'id',
+          'title',
+          'description',
+          'price',
+          'type',
+          'address',
+          'city',
+          'ownerId',
+          'ownerName',
+          'createdAt',
+          'status',
+          'verificationStatus',
+          'isPublished',
+          'ownerVerified'
+        ])
+        && request.resource.data.id == propertyId
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.description is string
+        && request.resource.data.price is number
+        && request.resource.data.type is string
+        && request.resource.data.address is string
+        && request.resource.data.city is string
+        && request.resource.data.ownerName is string
+        && request.resource.data.createdAt is string
+        && request.resource.data.status == 'PENDING'
+        && request.resource.data.verificationStatus == 'PENDING'
+        && request.resource.data.isPublished == false
+        && request.resource.data.ownerVerified == false
+        && request.resource.data.get('reviewedBy', null) == null
+        && request.resource.data.get('reviewedAt', null) == null
+        && request.resource.data.get('rejectionReason', null) == null;
 
-      // Owner may edit normal details only while still pending/rejected. Moderation fields are immutable to owners.
+      // ------------------------------------------------------------
+      // OWNER UPDATE
+      // Owner can edit only while PENDING or REJECTED.
+      // Owner can NEVER modify moderation fields.
+      // ------------------------------------------------------------
       allow update: if isSignedIn()
-        && existing().ownerId == request.auth.uid
-        && incoming().ownerId == existing().ownerId
-        && incoming().status == existing().status
-        && incoming().verificationStatus == existing().verificationStatus
-        && incoming().isPublished == existing().isPublished
-        && incoming().reviewedBy == existing().reviewedBy
-        && incoming().reviewedAt == existing().reviewedAt
-        && incoming().rejectionReason == existing().rejectionReason
-        && incoming().ownerVerified == existing().ownerVerified;
+        && resource.data.ownerId == request.auth.uid
+        && resource.data.status in ['PENDING', 'REJECTED']
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.verificationStatus == resource.data.verificationStatus
+        && request.resource.data.isPublished == resource.data.isPublished
+        && request.resource.data.ownerVerified == resource.data.ownerVerified
+        && request.resource.data.get('reviewedBy', null) == resource.data.get('reviewedBy', null)
+        && request.resource.data.get('reviewedAt', null) == resource.data.get('reviewedAt', null)
+        && request.resource.data.get('rejectionReason', null) == resource.data.get('rejectionReason', null);
 
-      // Only an ADMIN can approve/reject/suspend/publish.
+      // ------------------------------------------------------------
+      // ADMIN MODERATION
+      // Only ADMIN can change approval/rejection/publication state.
+      // ------------------------------------------------------------
       allow update: if isAdmin()
-        && incoming().ownerId == existing().ownerId
-        && incoming().id == existing().id
-        && incoming().status in ['PENDING','APPROVED','REJECTED','SUSPENDED']
-        && incoming().verificationStatus in ['PENDING','VERIFIED','REJECTED','SUSPENDED']
-        && incoming().isPublished is bool
-        && incoming().reviewedBy == request.auth.uid;
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.status in ['PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED']
+        && request.resource.data.verificationStatus in ['PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED']
+        && request.resource.data.isPublished is bool
+        && request.resource.data.ownerVerified is bool
+        && request.resource.data.reviewedBy == request.auth.uid;
 
-      allow delete: if isAdmin() || (isSignedIn() && existing().ownerId == request.auth.uid && existing().status != 'APPROVED');
+      allow delete: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.ownerId == request.auth.uid
+          && resource.data.status != 'APPROVED'
+        );
     }
 
-    // ================================================================
-    // Existing inquiry/chat functionality
-    // ================================================================
     match /inquiries/{inquiryId} {
       allow get: if isSignedIn() && isValidId(inquiryId) && (
-        resource.data.tenantEmail == request.auth.token.email ||
-        resource.data.ownerEmail == request.auth.token.email ||
-        isAdmin()
+        resource.data.tenantEmail == request.auth.token.email
+        || resource.data.ownerEmail == request.auth.token.email
+        || isAdmin()
       );
-      allow list: if isSignedIn() && (isAdmin() ||
-        (request.query.limit <= 50 && (
-          request.query.where.tenantEmail == request.auth.token.email ||
-          request.query.where.ownerEmail == request.auth.token.email
-        )));
+      allow list: if isAdmin();
       allow create: if isSignedIn() && isValidId(inquiryId);
-      allow update: if isSignedIn() && isValidId(inquiryId) &&
-        (isAdmin() || resource.data.ownerEmail == request.auth.token.email || resource.data.tenantEmail == request.auth.token.email);
+      allow update: if isSignedIn() && isValidId(inquiryId) && (
+        isAdmin()
+        || resource.data.ownerEmail == request.auth.token.email
+        || resource.data.tenantEmail == request.auth.token.email
+      );
       allow delete: if isSignedIn() && resource.data.tenantEmail == request.auth.token.email;
     }
 
     match /chat_messages/{messageId} {
       allow get: if isSignedIn() && isValidId(messageId) && (
-        resource.data.tenantEmail == request.auth.token.email ||
-        resource.data.ownerEmail == request.auth.token.email ||
-        isAdmin()
+        resource.data.tenantEmail == request.auth.token.email
+        || resource.data.ownerEmail == request.auth.token.email
+        || isAdmin()
       );
-      allow list: if isSignedIn() && isAdmin();
+      allow list: if isAdmin();
       allow create: if isSignedIn() && isValidId(messageId);
       allow update: if isSignedIn() && isValidId(messageId) && (
-        resource.data.tenantEmail == request.auth.token.email || resource.data.ownerEmail == request.auth.token.email || isAdmin()
+        resource.data.tenantEmail == request.auth.token.email
+        || resource.data.ownerEmail == request.auth.token.email
+        || isAdmin()
       );
       allow delete: if false;
     }
 
-    // Everything not explicitly allowed above is denied.
-    match /{document=**} { allow read, write: if false; }
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }
