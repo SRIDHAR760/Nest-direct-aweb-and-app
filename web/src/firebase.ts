@@ -33,30 +33,48 @@ async function testConnection() {
 }
 testConnection();
 
-export async function signInWithGoogle(): Promise<User | null> {
+export async function signInWithGoogle(role: 'OWNER' | 'SEEKER' | 'ADMIN' = 'SEEKER'): Promise<User | null> {
   const result = await signInWithPopup(auth, googleProvider);
-  await saveUserProfile(result.user);
+  await saveUserProfile(result.user, role);
   return result.user;
 }
 
-export async function signInGuestUser(): Promise<User | null> {
+export async function signInGuestUser(role: 'OWNER' | 'SEEKER' = 'SEEKER'): Promise<User | null> {
   const result = await signInAnonymously(auth);
-  await saveUserProfile(result.user);
+  await saveUserProfile(result.user, role);
   return result.user;
 }
 
-export async function signInWithEmail(email: string, pass: string): Promise<User | null> {
+export async function signInWithEmail(email: string, pass: string, role: 'OWNER' | 'SEEKER' = 'SEEKER'): Promise<User | null> {
   const result = await signInWithEmailAndPassword(auth, email, pass);
-  await saveUserProfile(result.user);
+  await saveUserProfile(result.user, role);
   return result.user;
 }
 
-export async function signUpWithEmail(email: string, pass: string, name: string): Promise<User | null> {
+/**
+ * Real Firebase admin authentication. A localStorage role switch is never
+ * enough to access the admin Firestore rules; the signed-in Firebase account
+ * must have users/{uid}.role == ADMIN.
+ */
+export async function signInAdminWithEmail(email: string, pass: string): Promise<User> {
+  const result = await signInWithEmailAndPassword(auth, email.trim(), pass);
+  const userSnap = await getDoc(doc(db, 'users', result.user.uid));
+  const role = userSnap.exists() ? userSnap.data()?.role : null;
+
+  if (role !== 'ADMIN') {
+    await signOut(auth);
+    throw new Error('This Firebase account is not an ADMIN. Set users/{uid}.role to ADMIN in Firestore before using the Admin Portal.');
+  }
+
+  return result.user;
+}
+
+export async function signUpWithEmail(email: string, pass: string, name: string, role: 'OWNER' | 'SEEKER' = 'SEEKER'): Promise<User | null> {
   const result = await createUserWithEmailAndPassword(auth, email, pass);
   await updateProfile(result.user, { displayName: name });
   await result.user.reload();
   const updatedUser = auth.currentUser || result.user;
-  await saveUserProfile(updatedUser);
+  await saveUserProfile(updatedUser, role);
   return updatedUser;
 }
 
@@ -74,26 +92,32 @@ export async function saveUserProfile(user: User, role: 'OWNER' | 'SEEKER' | 'AD
     const joinedAt = new Date().toISOString();
 
     if (!userSnap.exists()) {
+      // Public users can only be created as OWNER/SEEKER. ADMIN must be
+      // provisioned manually by the administrator, never from the client.
+      const safeRole = role === 'ADMIN' ? 'SEEKER' : role;
       await setDoc(userRef, {
         uid: user.uid, displayName, email: user.email || (user.isAnonymous ? 'guest@nestdirect.in' : ''),
-        photoURL, provider, role, favorites: ['prop-1', 'prop-5'],
+        photoURL, provider, role: safeRole, favorites: ['prop-1', 'prop-5'],
         onboardingCompleted, isKycVerified, createdAt: joinedAt
       });
       await setDoc(registryRef, {
         uid: user.uid, name: displayName, email: user.email || (user.isAnonymous ? 'guest@nestdirect.in' : ''),
-        photoURL, provider, role, joinedAt, isGuest: user.isAnonymous || false,
+        photoURL, provider, role: safeRole, joinedAt, isGuest: user.isAnonymous || false,
         deviceType: /Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Web', city: 'Chennai'
       });
     } else {
       const existingData = userSnap.data();
+      // IMPORTANT: never write the role during normal profile refresh. The
+      // Firestore rules intentionally make role immutable to the client.
+      // This prevents a normal sign-in from causing permission-denied errors
+      // or allowing a user to overwrite their own role.
       await setDoc(userRef, {
         displayName: existingData.displayName || displayName,
-        photoURL: existingData.photoURL || photoURL,
-        role: existingData.role || role
+        photoURL: existingData.photoURL || photoURL
       }, { merge: true });
       await setDoc(registryRef, {
         lastSeenAt: joinedAt, name: displayName, provider,
-        role: existingData.role || role
+        role: existingData.role || 'SEEKER'
       }, { merge: true });
     }
   } catch (error) {
